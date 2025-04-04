@@ -1,0 +1,145 @@
+.header-container {
+    margin-bottom: 2rem;
+}
+
+.header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.header-title {
+    flex-grow: 1;
+    text-align: center;
+    font-size: var(--font-size-h1);
+    color: var(--night-view-green);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.field-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    /*grid-template-columns: repeat(2, minmax(220px, 1fr));*/
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.field-grid-location {
+    grid-template-columns: repeat(2, minmax(220px, 0fr));
+}
+
+.field-grid-openingHours {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5vw;
+}
+
+.field-grid-corners{
+    display: grid;
+    flex-direction: row;
+    /*grid-template-columns: repeat(5, minmax(220px, 0fr));*/
+}
+
+/* Field Item Styling */
+.field-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.field-item label {
+    font-weight: bold;
+    margin-bottom: 0.4rem;
+}
+
+.field-item input,
+.field-item select,
+.field-item textarea {
+    padding: var(--space-small);
+    border: 1px solid #ccc;
+    border-radius: var(--normal-border-radius);
+}
+
+.club-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-medium);
+}
+
+.day-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+
+.day-label {
+    color: var(--color-white);
+    font-size: var(--font-size-medium);
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: var(--space-small);
+}
+
+.day-details {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-small);
+    width: 100%;
+}
+
+.detail-box {
+    flex: 1;
+    background-color: var(--color-white);
+    color: var(--color-black);
+    padding: var(--space-small);
+    border-radius: 5px;
+    text-align: center;
+    /*border: var(--night-view-purple) 2px solid;*/
+}
+
+.detail-box-age {
+    flex: 0.5;
+}
+
+.detail-box-offer {
+    /*flex: 0.5;*/
+}
+
+.offer-indicator.has-offer {
+    color: var(--night-view-green);
+    font-weight: bold;
+}
+
+.overview-stats {
+    width: 100%;
+    margin-bottom: 1.5rem; /* Adjust this to move the iPhone further down */
+}
+
+.stats-details {
+    display: flex;
+    flex-direction: row; /* Display boxes side by side */
+    justify-content: space-between; /* Spread boxes evenly */
+    gap: var(--space-small);
+    width: 100%;
+}
+
+.stat-box {
+    flex: 1; /* Each box takes equal width */
+    background-color: var(--color-white);
+    color: var(--color-black);
+    padding: var(--space-small);
+    border-radius: 5px;
+    text-align: center;
+}
+
+.stat-value {
+    color: var(--color-black);
+}
+
+.offer-image{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}

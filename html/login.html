@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+
+    <link rel="stylesheet" href="../css/reusables/basic.css">
+    <link rel="stylesheet" href="../css/reusables/navbar.css">
+    <link rel="stylesheet" href="../css/reusables/button.css">
+    <link rel="stylesheet" href="../css/reusables/image.css">
+
+    <link rel="stylesheet" href="../css/specifics/login.css">
+
+    <script type="module" src="../js/specifics/login.js"></script>
+    <script type="module" src="../js/utilities/navbar.js"></script>
+</head><body>
+<nav-bar></nav-bar>
+
+<div class="login-wrapper">
+    <div class="logo-text-container">
+        <img src="../images/nightview/logo_text_subtitle.png" alt="NightView Picture">
+    </div>
+
+    <div class="login-form" id="login-container">
+        <form id="login-form">
+            <div class="form-group">
+                <input type="text" id="email" name="email" placeholder="Email" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" name="password" placeholder="Password" required>
+            </div>
+            <button type="submit" class="login-btn" id="submit-btn" disabled>Log ind</button>
+        </form>
+    </div>
+
+</div>
+</body>
+
+</html>

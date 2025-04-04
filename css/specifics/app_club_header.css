@@ -1,0 +1,245 @@
+/*app_club_header.css*/
+
+.club-header {
+    width: 100%;
+    overflow-y: auto;
+    background-color: var(--color-black);
+    color: var(--color-white);
+}
+
+/* Top Section */
+.top-section {
+    position: relative;
+align-content: space-evenly;
+    padding: var(--small-padding);
+}
+
+.circle-avatar img {
+    width: calc(var(--normal-size-radius) * 2);
+    height: calc(var(--normal-size-radius) * 2);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.club-type-img {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.club-type-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 50%;
+}
+
+.chevron-icon {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: var(--small-padding);
+}
+
+.chevron-icon i {
+    font-size: var(--bigger-size-radius);
+    cursor: pointer;
+}
+
+.distance-display {
+    position: absolute;
+    right: 5%;
+    top: var(--small-padding);
+    font-size: var(--p1-font-size);
+}
+
+/* Club Name */
+.club-name {
+    text-align: center;
+    padding: var(--main-padding) 0;
+}
+
+.club-name h1 {
+    font-size: var(--h1-font-size);
+    font-weight: bold;
+    color: var(--night-view-green);
+    text-shadow: -0.2px -0.2px 0 var(--color-white),
+    0.2px -0.2px 0 var(--color-white),
+    -0.2px 0.2px 0 var(--color-white),
+    0.2px 0.2px 0 var(--color-white);
+    margin: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Logo Section */
+.logo-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 var(--main-padding);
+}
+
+.logo-favorite {
+    display: flex;
+    align-items: center;
+}
+
+.logo-container {
+    width: calc(var(--bigger-size-radius) * 2);
+    height: calc(var(--bigger-size-radius) * 2);
+    border-radius: 50%;
+    border: 3px solid;
+}
+
+.logo-container.open {
+    border-color: var(--night-view-green);
+}
+
+.logo-container.closed {
+    border-color: var(--color-red);
+}
+
+.logo-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.favorite-button {
+    margin-left: var(--small-spacer-value);
+}
+
+.favorite-button i {
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.capacity-indicator {
+    position: relative;
+    width: calc(var(--bigger-size-radius) * 2);
+    height: calc(var(--bigger-size-radius) * 2);
+    cursor: pointer;
+}
+
+.progress-circle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(var(--night-view-purple) 0% 75%, var(--color-white) 75% 100%);
+    /* Adjust percentage dynamically with JS */
+}
+
+.inner-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    height: 80%;
+    background: var(--color-black);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.percent-value {
+    font-size: var(--h3-font-size);
+    color: var(--night-view-green);
+}
+
+.percent-sign {
+    font-size: var(--h3-font-size);
+    color: var(--color-white);
+}
+
+/* Info Row */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--small-spacer-value) var(--main-padding);
+}
+
+.age-restriction {
+    color: var(--night-view-green);
+    font-size: var(--p1-font-size);
+}
+
+.capacity-text {
+    font-size: var(--p1-font-size);
+}
+
+/* Opening Hours Row */
+.opening-hours-row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--small-spacer-value) var(--main-padding);
+}
+
+.opening-hours {
+    font-size: var(--p1-font-size);
+}
+
+.opening-hours.closed {
+    color: var(--color-red);
+}
+
+.popup-menu i {
+    font-size: var(--p1-font-size);
+    cursor: pointer;
+}
+
+/* Rate Club */
+.rate-club {
+    padding: var(--main-padding);
+    font-size: var(--p1-font-size);
+}
+.fa-star{
+    color: var(--night-view-green);
+}
+
+.rate-club i {
+    color: var(--night-view-purple); /* Adjust based on rating logic */
+}
+
+/* Divider */
+.divider {
+    padding: 0 var(--main-padding);
+}
+
+.divider hr {
+    border: none;
+    border-top: var(--main-stroke-width) solid var(--color-white);
+}
+
+.right-container {
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: var(--color-black);
+    color: var(--color-white);
+    overflow-y: auto;
+    display: flex; /* Enable Flexbox */
+    flex-direction: column; /* Stack children vertically */
+    justify-content: flex-end; /* Align contents to the bottom */
+}
+
+
+.club-marker {
+    border-radius: 50%;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.5);
+}
+
+/*.club-header {*/

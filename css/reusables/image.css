@@ -1,0 +1,20 @@
+.logo-text-container {
+    height: 15vw;
+    overflow: hidden;
+}
+
+.logo-text-container img {
+    height: 15vw;
+    width: auto;
+    object-fit: contain; /* keep its aspect ratio inside the box */
+    border-radius: 50%; /* optional rounded corners */
+}
+
+/*Left container club data page*/
+.header-img {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--night-view-green);
+}

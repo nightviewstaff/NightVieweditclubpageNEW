@@ -1,0 +1,64 @@
+
+.iphone-wrapper {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.iphone-content {
+    flex: 1;
+}
+
+
+.right-container {
+    background-color: var(--color-black);
+    color: var(--color-white);
+    border-radius: 48px; /* Adjust for a more rounded frame */
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    /* Maintain iPhone-like aspect ratio */
+    aspect-ratio: 9 / 19.5;
+    width: 100%;
+    max-width: 450px; /* Adjust width as needed */
+    height: auto;
+    max-height: 900px; /* Adjust height as needed */
+    flex-shrink: 0;
+    flex-grow: 0;
+    align-self: flex-start;
+    border: 1px solid var(--night-view-green);
+    position: relative;
+}
+
+/*.right-container {*/
+/*    background-color: var(--color-black);*/
+/*    color: var(--color-white);*/
+/*    border-radius: 48px;*/
+/*    overflow: hidden;*/
+
+/*    display: flex;*/
+/*    flex-direction: column;*/
+/*    justify-content: flex-start;*/
+
+/*    !* Bigger iPhone feel *!*/
+/*    width: 100%;*/
+/*    max-width: 400px;   !* from 360px → 400px *!*/
+/*    aspect-ratio: 9 / 19.5;*/
+/*    max-height: 800px;  !* from 740px → 800px *!*/
+/*    height: auto;*/
+
+/*    flex-shrink: 0;*/
+/*    flex-grow: 0;*/
+/*    align-self: flex-start;*/
+
+/*    border: 1px solid var(--night-view-green);*/
+/*    position: relative;*/
+/*}*/
+
+#map {
+    flex-grow: 1; /* Allows the map to take up remaining space */
+    width: 100%;
+}
