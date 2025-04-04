@@ -67,11 +67,6 @@ align-content: space-evenly;
 .club-name h1 {
     font-size: var(--h1-font-size);
     font-weight: bold;
-    color: var(--night-view-green);
-    text-shadow: -0.2px -0.2px 0 var(--color-white),
-    0.2px -0.2px 0 var(--color-white),
-    -0.2px 0.2px 0 var(--color-white),
-    0.2px 0.2px 0 var(--color-white);
     margin: 0;
     max-width: 100%;
     overflow: hidden;
@@ -188,13 +183,6 @@ align-content: space-evenly;
     padding: var(--small-spacer-value) var(--main-padding);
 }
 
-.opening-hours {
-    font-size: var(--p1-font-size);
-}
-
-.opening-hours.closed {
-    color: var(--color-red);
-}
 
 .popup-menu i {
     font-size: var(--p1-font-size);

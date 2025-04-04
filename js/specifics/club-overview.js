@@ -16,6 +16,7 @@ import {
 import {CLUB_TYPES_ENGLISH} from "../utilities/constants.js";
 import {clubDataCache, setClubDataCache} from "../utilities/global.js"; // Import the setter
 import {getClubSession, getSession} from "../utilities/session.js";
+import {updateIPhoneDisplay} from "./iphone-display-updater.js";
 
 // DOMContentLoaded event listener for initial setup
 document.addEventListener("DOMContentLoaded", () => {
@@ -279,8 +280,150 @@ async function loadData(user, selectedClubId) {
         console.error("Error fetching club data:", error);
         alert("An error occurred while loading data.");
     }
-    // initMap(dbData.lat, dbData.lon)
+    setupLivePreviewBindings();
+    bindLeftInputs();
 }
+
+function bindLeftInputs() {
+    const nameInput = document.getElementById("clubNameInput");
+    const typeSelect = document.getElementById("typeOfClubSelect");
+    const primaryColor = document.getElementById("primaryColor");
+    const secondaryColor = document.getElementById("secondaryColor");
+
+    if (nameInput) {
+        nameInput.addEventListener("input", () => {
+            document.querySelector(".header-title").textContent = nameInput.value;
+        });
+    }
+
+    if (typeSelect) {
+        typeSelect.addEventListener("change", () => {
+            const img = document.getElementById("clubTypeImg");
+            if (img)
+                img.src = typeSelect.value
+                    ? `../images/clubtype/${typeSelect.value}_icon.png`
+                    : "../images/default_type.png";
+        });
+    }
+
+    // Add color picker for primary color
+    if (primaryColor) {
+        primaryColor.addEventListener("click", () => {
+            showColorPicker(primaryColor, (color) => {
+                primaryColor.value = color;
+                // Trigger iPhone display update
+                const event = new Event("input");
+                primaryColor.dispatchEvent(event);
+            });
+        });
+    }
+
+    // Add color picker for secondary (background) color
+    if (secondaryColor) {
+        secondaryColor.addEventListener("click", () => {
+            showColorPicker(secondaryColor, (color) => {
+                secondaryColor.value = color;
+                // Trigger iPhone display update
+                const event = new Event("input");
+                secondaryColor.dispatchEvent(event);
+            });
+        });
+    }
+}
+
+
+function getTodayKey() {
+    return new Date().toLocaleDateString("en-US", {weekday: "long"}).toLowerCase();
+}
+
+function setupLivePreviewBindings() {
+    const today = getTodayKey();
+
+    const inputs = {
+        displayName: document.getElementById("clubDisplayName"),
+        logo: document.getElementById("clubLogoImg"),
+        type: document.getElementById("typeOfClubSelect"),
+        maxVisitors: document.getElementById("maxVisitors"),
+        entryPrice: document.getElementById("entryPrice"),
+        primaryColor: document.getElementById("primaryColor"),
+        secondaryColor: document.getElementById("secondaryColor"),
+        font: document.getElementById("font"),
+        lat: document.getElementById("lat"),
+        lon: document.getElementById("lon")
+    };
+
+    const dynamicPreviewUpdate = () => {
+        const ageElem = document.getElementById(`${today}-age`);
+        const hoursElem = document.getElementById(`${today}-hours`);
+
+        const data = {
+            displayName: inputs.displayName.value,
+            logo: inputs.logo.src,
+            type: inputs.type.value,
+            ageRestriction: ageElem?.textContent?.replace("+", "") || "18",
+            entryPrice: parseFloat(inputs.entryPrice.value || "0"),
+            primaryColor: inputs.primaryColor.value,
+            secondaryColor: inputs.secondaryColor.value,
+            font: inputs.font.value,
+            lat: parseFloat(inputs.lat.value),
+            lon: parseFloat(inputs.lon.value),
+            openingHours: hoursElem?.textContent || "closed"
+        };
+
+        updateIPhoneDisplay(data);
+    };
+
+    // Bind to all static inputs
+    Object.values(inputs).forEach((input) => {
+        if (input) input.addEventListener("input", dynamicPreviewUpdate);
+    });
+
+    // Also monitor age/hour elements (in case changed manually later)
+    const ageElem = document.getElementById(`${today}-age`);
+    const hoursElem = document.getElementById(`${today}-hours`);
+    if (ageElem) ageElem.addEventListener("DOMSubtreeModified", dynamicPreviewUpdate);
+    if (hoursElem) hoursElem.addEventListener("DOMSubtreeModified", dynamicPreviewUpdate);
+
+    // Initial update
+    dynamicPreviewUpdate();
+}
+
+function showColorPicker(inputElement, onColorSelect) {
+    // Remove any existing popups
+    const existingPopup = document.querySelector(".color-picker-popup");
+    if (existingPopup) existingPopup.remove();
+
+    // Create popup
+    const popup = document.createElement("div");
+    popup.className = "color-picker-popup";
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.value = inputElement.value || "#000000"; // Default to black if empty
+    popup.appendChild(colorInput);
+
+    // Position popup near the input
+    const rect = inputElement.getBoundingClientRect();
+    popup.style.top = `${rect.bottom + window.scrollY}px`;
+    popup.style.left = `${rect.left + window.scrollX}px`;
+
+    document.body.appendChild(popup);
+
+    // Update input value and trigger callback on color change
+    colorInput.addEventListener("input", () => {
+        inputElement.value = colorInput.value;
+        onColorSelect(colorInput.value);
+    });
+
+    // Remove popup when clicking outside
+    const closePopup = (e) => {
+        if (!popup.contains(e.target) && e.target !== inputElement) {
+            popup.remove();
+            document.removeEventListener("click", closePopup);
+        }
+    };
+    setTimeout(() => document.addEventListener("click", closePopup), 0);
+}
+
 
 
 // Function to handle adding or deleting an offer picture
@@ -335,5 +478,17 @@ window.addEventListener("clubChanged", () => {
         loadData({uid, role}, selectedClubId);
     } else {
         console.log("No selected club or user context available.");
+    }
+});
+
+document.getElementById("resetButton").addEventListener("click", () => {
+    const uid = getSession().uid;
+    const role = getSession().role;
+    const clubId = getClubSession(); // or track the current clubId globally
+
+    if (uid && role && clubId) {
+        loadData({uid, role}, clubId);
+    } else {
+        alert("Cannot reset — missing user or club info.");
     }
 });

@@ -23,7 +23,7 @@
     <script type="module" src="../js/utilities/constants.js"></script>
 
     <script type="module" src="../js/specifics/club-overview.js"></script>
-    <script type="module" src="../js/specifics/iphone-display.js"></script>
+    <script type="module" src="../js/specifics/iphone-display-updater.js"></script>
 
 </head>
 <body>
@@ -48,15 +48,15 @@
                     <div class="field-grid">
                         <div class="field-item">
                             <label for="clubNameInput">Name</label>
-                            <input type="text" id="clubNameInput" placeholder="Loading..."/>
+                            <input type="text" id="clubNameInput" placeholder="Loading..." required minlength="1">
                         </div>
                         <div class="field-item">
                             <label for="clubDisplayName">App Display Name</label>
-                            <input type="text" id="clubDisplayName" placeholder="Loading..."/>
+                            <input type="text" id="clubDisplayName" placeholder="Loading..." required minlength="1">
                         </div>
                         <div class="field-item">
                             <label for="typeOfClubSelect">Type</label>
-                            <select id="typeOfClubSelect"></select>
+                            <select id="typeOfClubSelect" required></select>
                         </div>
                     </div>
                 </details>
@@ -68,32 +68,34 @@
                     <div class="field grid field-grid-location">
                         <div class="field-item">
                             <label for="lat">Latitude</label>
-                            <input type="number" step="any" id="lat" placeholder="Loading..."/>
+                            <input type="number" step="any" id="lat" placeholder="Loading..." min="-90" max="90">
                         </div>
                         <div class="field-item">
                             <label for="lon">Longitude</label>
-                            <input type="number" step="any" id="lon" placeholder="Loading..."/>
+                            <input type="number" step="any" id="lon" placeholder="Loading..." min="-180" max="180">
                         </div>
                         <div id="corners-container" class="field-grid field-grid-corners">
                             <div class="field-item">
-                                <label for="corner1-lat">Corner 1</label>
-                                <input type="number" step="any" id="corner1-lat" placeholder="Latitude">
-                                <input type="number" step="any" id="corner1-lon" placeholder="Longitude">
+                                <label for="corner1-lat">Corner 1 (lat,lon)</label>
+                                <input type="number" step="any" id="corner1-lat" placeholder="Latitude" min="-90" max="90">
+                                <input type="number" step="any" id="corner1-lon" placeholder="Longitude" min="-180" max="180">
                             </div>
                             <div class="field-item">
-                                <label for="corner2-lat">Corner 2</label>
-                                <input type="number" step="any" id="corner2-lat" placeholder="Latitude">
-                                <input type="number" step="any" id="corner2-lon" placeholder="Longitude">
+                                <label for="corner2-lat">Corner 2 (lat,lon)</label>
+                                <input type="number" step="any" id="corner2-lat" placeholder="Latitude" min="-90" max="90">
+                                <input type="number" step="any" id="corner2-lon" placeholder="Longitude" min="-180" max="180">
+
                             </div>
                             <div class="field-item">
-                                <label for="corner3-lat">Corner 3</label>
-                                <input type="number" step="any" id="corner3-lat" placeholder="Latitude">
-                                <input type="number" step="any" id="corner3-lon" placeholder="Longitude">
+                                <label for="corner3-lat">Corner 3 (lat,lon)</label>
+                                <input type="number" step="any" id="corner3-lat" placeholder="Latitude" min="-90" max="90">
+                                <input type="number" step="any" id="corner3-lon" placeholder="Longitude" min="-180" max="180">
+
                             </div>
                             <div class="field-item">
-                                <label for="corner4-lat">Corner 4</label>
-                                <input type="number" step="any" id="corner4-lat" placeholder="Latitude">
-                                <input type="number" step="any" id="corner4-lon" placeholder="Longitude">
+                                <label for="corner4-lat">Corner 4 (lat,lon)</label>
+                                <input type="number" step="any" id="corner4-lat" placeholder="Latitude" min="-90" max="90">
+                                <input type="number" step="any" id="corner4-lon" placeholder="Longitude" min="-180" max="180">
                             </div>
                         </div>
                     </div>
@@ -105,11 +107,11 @@
                     <summary>Details</summary>
                     <div class="field-item">
                         <h3 class="day-label">Capacity</h3>
-                        <input type="number" id="maxVisitors" placeholder="Loading..."/>
+                        <input type="number" id="maxVisitors" placeholder="Loading..." min="1" max="500">
                     </div>
                     <div class="field-item">
-                        <h3 class="day-label">Entry Price</h3>
-                        <input type="number" id="entryPrice" placeholder="Loading..."/>
+                        <h3 class="day-label">Entry Price (DKK)</h3>
+                        <input type="number" id="entryPrice" placeholder="Loading..." min="0" step="0.01">
                     </div>
                     <div class="field-item">
                         <h3 class="day-label">Primary Color</h3>
@@ -135,7 +137,7 @@
                             <h3 class="day-label">Monday</h3>
                             <div class="day-details">
                                 <div class="detail-box">
-                                    <span class="hours" id="monday-hours">Loading...</span>
+                                    <input class="hours" id="monday-hours">Loading...</input>
                                 </div>
                                 <div class="detail-box detail-box-age">
                                     <span class="age-limit" id="monday-age">Loading...</span>
@@ -249,8 +251,7 @@
         <div class="right-container">
             <div class="iphone-content">
                 <h1>App display</h1>
-                <!--        TODO Make header at top.-->
-                <div id="map" style="height: 15vw; width: 100%; "></div>
+                <div id="map" style="height: 16vw; width: 100%; "></div>
 
                 <div class="club-header">
                     <!-- Top Section -->
@@ -297,14 +298,14 @@
 
                     <!-- Opening Hours -->
                     <div class="opening-hours-row">
-                        <span class="opening-hours">Åben: 22:00 - 05:00</span>
+                        <span class="opening-hours">22:00 - 05:00 today</span>
                         <div class="popup-menu">
                             <i class="fas fa-chevron-down"></i>
                             <!--                    TODO COLOR-->
                         </div>
                     </div>
 
-                    <!-- Rate Club TODO MIDDLE-->
+                    <!-- Rate Club -->
                     <div class="rate-club">
                         <i class="fas fa-star"></i>
                         <i class="fas fa-star"></i>

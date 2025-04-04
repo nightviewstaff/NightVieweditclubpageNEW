@@ -19,3 +19,20 @@
     max-width: 90vw;
     max-height: 80vh;
 }
+
+
+.color-picker-popup {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.color-picker-popup input[type="color"] {
+    width: 100px;
+    height: 40px;
+    border: none;
+    cursor: pointer;
+}
