@@ -34,24 +34,30 @@
 }
 
 .offer-image {
-    position: relative;
-    width: 100%;
-    height: auto;
-    text-align: center; /* Center the header and image */
+    max-height: 200px; /* Or however much vertical space you want it to use */
+    overflow-y: auto; /* Makes just this area scrollable */
 }
-
-.offer-image h2 {
-    margin: 10px 0; /* Spacing above and below the header */
-    color: var(--color-white);
-}
-
 .offer-image img {
     width: 100%; /* Fit within container width */
     height: auto; /* Maintain aspect ratio */
-    max-height: 200px; /* Limit height to prevent overflow; adjust as needed */
+    max-height: 500px; /* Limit height to prevent overflow; adjust as needed */
     object-fit: cover; /* Crop if necessary while preserving aspect ratio */
     display: block; /* Remove inline spacing */
 }
+
+.offer-image::-webkit-scrollbar {
+    width: 4px;
+}
+
+.offer-image::-webkit-scrollbar-thumb {
+    background-color: var(--night-view-purple);
+    border-radius: 10px;
+}
+
+.offer-image::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 
 #map {
     flex-grow: 1; /* Allows the map to take up remaining space */

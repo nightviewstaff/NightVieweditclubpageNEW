@@ -32,7 +32,9 @@
 .left-section {
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
 }
+
 
 .middle-section {
     display: flex;
