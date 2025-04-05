@@ -121,28 +121,29 @@
                         <h3 class="day-label">Background Color</h3>
                         <input type="text" id="secondaryColor" placeholder="Loading..."/>
                     </div>
-                    <div class="field-item">
+                    <div class="field-item" id="fontFieldItem">
                         <h3 class="day-label">Font</h3>
-                        <input type="text" id="font" placeholder="Loading..."/>
+                        <input type="text" id="font" placeholder="Loading..." readonly style="cursor: pointer;"/>
                     </div>
+
                 </details>
             </div>
 
             <div class="right-section">
                 <details>
-                    <summary>Weekdays</summary>
+                    <summary>Opening hours</summary>
                     <!--                    TODO COOL details-->
                     <div class="club-details">
                         <div class="day-section">
                             <h3 class="day-label">Monday</h3>
                             <div class="day-details">
                                 <div class="detail-box">
-                                    <input class="hours" id="monday-hours">Loading...</input>
+                                    <input type="text" class="hours" id="monday-hours" readonly placeholder="Loading...">
                                 </div>
                                 <div class="detail-box detail-box-age">
-                                    <span class="age-limit" id="monday-age">Loading...</span>
+                                    <input type="text" class="age-limit" id="monday-age" readonly placeholder="Loading...">
                                 </div>
-                                <div class="detail-box">
+                                <div class="detail-box detail-box-offer">
                                     <button class="offer-button" id="monday-offer" data-day="monday">No Offer</button>
                                 </div>
                             </div>
@@ -156,7 +157,7 @@
                                 <div class="detail-box detail-box-age">
                                     <span class="age-limit" id="tuesday-age">Loading...</span>
                                 </div>
-                                <div class="detail-box detail-box-offer">
+                                <div class="detail-box">
                                     <button class="offer-button" id="tuesday-offer" data-day="tuesday">No Offer</button>
 
                                 </div>

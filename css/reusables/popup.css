@@ -7,6 +7,15 @@
     justify-content: center;
     z-index: 999;
 }
+.popup-header {
+    margin: 0 0 10px 0; /* Add some spacing below the header */
+    font-size: 16px; /* Slightly smaller than a typical h3 for a compact look */
+    font-weight: bold;
+    color: var(--color-black); /* Match your existing text color */
+    text-align: center; /* Center the header text */
+    border-bottom: 1px solid #ccc; /* Add a subtle underline for separation */
+    padding-bottom: 5px; /* Space between the header and the content */
+}
 
 .popup-content {
     background: white;
@@ -31,8 +40,80 @@
 }
 
 .color-picker-popup input[type="color"] {
-    width: 100px;
-    height: 40px;
+    width: 200px;
+    height: 80px;
     border: none;
     cursor: pointer;
 }
+.time-picker-popup {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ddd;
+    padding: 12px 16px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-radius: 8px;
+    min-width: 280px;
+}
+
+.time-picker-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.time-picker-popup input[type="time"] {
+    padding: 6px 8px;
+    width: 100px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.time-picker-popup button,
+.age-picker-popup button{
+    align-self: center;
+    margin-top: 6px;
+    padding: 6px 14px;
+    background: var(--night-view-green);
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s ease-in-out;
+    min-width: 280px;
+
+}
+
+.time-picker-popup button:hover,
+.age-picker-popup button:hover{
+    background: var(--night-view-purple);
+}
+
+.age-picker-popup {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.age-picker-popup label {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.age-picker-popup input[type="number"] {
+    padding: 5px;
+    width: 120px;
+}
+
+
+

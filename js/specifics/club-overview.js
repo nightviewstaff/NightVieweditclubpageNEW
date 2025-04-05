@@ -130,9 +130,9 @@ async function loadData(user, selectedClubId) {
                 }),
                 name: dbData.name || "Unknown Club",
                 ageRestriction:
-                    dbData.age_restriction && dbData.age_restriction >= 18
+                    dbData.age_restriction && dbData.age_restriction >= 16
                         ? `${dbData.age_restriction}+`
-                        : "Unknown age restriction",
+                        : "Not set",
                 openingHours: formatOpeningHours(dbData.opening_hours),
                 distance: "300 m",
                 isFavorite: true,
@@ -224,7 +224,7 @@ async function loadData(user, selectedClubId) {
 
             const font = document.getElementById("font");
             if (font) {
-                font.value = dbData.font ?? "NightView"; // Default to Arial
+                font.value = dbData.font ?? "NightView Font"; // Default to Arial
                 console.log("Font set to:", font.value);
             }
 
@@ -245,7 +245,7 @@ async function loadData(user, selectedClubId) {
 
                 const dayHours = dbData.opening_hours?.[day];
                 if (hoursElement)
-                    hoursElement.textContent = dayHours
+                    hoursElement.value = dayHours
                         ? `${dayHours.open} - ${dayHours.close}`
                         : "Closed";
 
@@ -255,10 +255,10 @@ async function loadData(user, selectedClubId) {
                         ? dayAgeRestriction
                         : dbData.age_restriction;
                 if (ageElement) {
-                    ageElement.textContent =
+                    ageElement.value =
                         ageToDisplay !== undefined && ageToDisplay !== null
-                            ? ageToDisplay < 18
-                                ? "??"
+                            ? ageToDisplay < 16
+                                ? "Not set"
                                 : `${ageToDisplay}+`
                             : "Not set";
                 }
@@ -272,6 +272,52 @@ async function loadData(user, selectedClubId) {
                     );
                 }
             });
+            days.forEach((day) => {
+                const hoursElement = document.getElementById(`${day}-hours`);
+                const hoursContainer = hoursElement?.parentElement; // Get the parent .detail-box
+                if (hoursContainer) {
+                    hoursContainer.addEventListener("click", () => {
+                        showTimePicker(day, hoursElement, (day, newHours) => {
+                            // Update the UI
+                            hoursElement.value = newHours;
+                            // Trigger preview update if it's today's hours
+                            if (day === getTodayKey()) {
+                                const event = new Event("input");
+                                hoursElement.dispatchEvent(event);
+                            }
+                        });
+                    });
+                }
+            });
+
+            days.forEach((day) => {
+                const ageElement = document.getElementById(`${day}-age`);
+                const ageContainer = ageElement?.parentElement; // Get the parent .detail-box-age
+                if (ageContainer) {
+                    ageContainer.setAttribute("tabindex", "0"); // Make it focusable for accessibility
+                    const openAgePicker = () => {
+                        showAgePicker(day, ageElement, (day, newAge) => {
+                            // Update the UI
+                            const displayAge = newAge < 16 ? "??" : `${newAge}+`;
+                            ageElement.value = displayAge;
+                            // Trigger preview update if it's today's age
+                            if (day === getTodayKey()) {
+                                const event = new Event("DOMSubtreeModified");
+                                ageElement.dispatchEvent(event);
+                            }
+                        });
+                    };
+                    ageContainer.addEventListener("click", openAgePicker);
+                    ageContainer.addEventListener("keydown", (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openAgePicker();
+                        }
+                    });
+                }
+            });
+
+
         } else {
             console.log("No documents found in collection.");
             alert("No club data available.");
@@ -282,6 +328,66 @@ async function loadData(user, selectedClubId) {
     }
     setupLivePreviewBindings();
     bindLeftInputs();
+}
+
+function showAgePicker(day, ageElement, onAgeSelect) {
+    // Remove any existing popups
+    const existingPopup = document.querySelector(".age-picker-popup");
+    if (existingPopup) existingPopup.remove();
+
+    // Create popup
+    const popup = document.createElement("div");
+    popup.className = "age-picker-popup";
+
+    // Add header
+    const header = document.createElement("h3");
+    header.className = "popup-header";
+    const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1); // Capitalize the day
+    header.textContent = `Age Restriction ${capitalizedDay}`;
+    popup.appendChild(header);
+
+    // Age input
+    const ageLabel = document.createElement("label");
+    ageLabel.textContent = "Age Limit:";
+    const ageInput = document.createElement("input");
+    ageInput.type = "number";
+    ageInput.min = 16;
+    ageInput.max = 35;
+    ageInput.value = ageElement.value || "";
+    popup.appendChild(ageLabel);
+    popup.appendChild(ageInput);
+
+    // Save button
+    const saveButton = document.createElement("button");
+    saveButton.textContent = "Save";
+    saveButton.addEventListener("click", () => {
+        let newAge = parseInt(ageInput.value);
+        if (isNaN(newAge) || newAge < 16 || newAge > 35) {
+            alert("Please enter an age between 16 and 35.");
+            return;
+        }
+        const displayAge = newAge < 16 ? "??" : `${newAge}+`;
+        ageElement.value = displayAge;
+        onAgeSelect(day, newAge);
+        popup.remove();
+    });
+    popup.appendChild(saveButton);
+
+    // Position popup near the age element
+    const rect = ageElement.getBoundingClientRect();
+    popup.style.top = `${rect.bottom + window.scrollY}px`;
+    popup.style.left = `${rect.left + window.scrollX}px`;
+
+    document.body.appendChild(popup);
+
+    // Close popup when clicking outside
+    const closePopup = (e) => {
+        if (!popup.contains(e.target) && e.target !== ageElement) {
+            popup.remove();
+            document.removeEventListener("click", closePopup);
+        }
+    };
+    setTimeout(() => document.addEventListener("click", closePopup), 0);
 }
 
 function bindLeftInputs() {
@@ -367,7 +473,7 @@ function setupLivePreviewBindings() {
             font: inputs.font.value,
             lat: parseFloat(inputs.lat.value),
             lon: parseFloat(inputs.lon.value),
-            openingHours: hoursElem?.textContent || "closed"
+            openingHours: hoursElem?.value || "Closed"
         };
 
         updateIPhoneDisplay(data);
@@ -378,45 +484,110 @@ function setupLivePreviewBindings() {
         if (input) input.addEventListener("input", dynamicPreviewUpdate);
     });
 
-    // Also monitor age/hour elements (in case changed manually later)
-    const ageElem = document.getElementById(`${today}-age`);
+    // Bind to today's hours input
     const hoursElem = document.getElementById(`${today}-hours`);
+    if (hoursElem) hoursElem.addEventListener("input", dynamicPreviewUpdate);
+
+    // Bind to today's age element (still using DOMSubtreeModified if needed)
+    const ageElem = document.getElementById(`${today}-age`);
     if (ageElem) ageElem.addEventListener("DOMSubtreeModified", dynamicPreviewUpdate);
-    if (hoursElem) hoursElem.addEventListener("DOMSubtreeModified", dynamicPreviewUpdate);
 
     // Initial update
     dynamicPreviewUpdate();
 }
 
 function showColorPicker(inputElement, onColorSelect) {
-    // Remove any existing popups
     const existingPopup = document.querySelector(".color-picker-popup");
     if (existingPopup) existingPopup.remove();
 
-    // Create popup
     const popup = document.createElement("div");
     popup.className = "color-picker-popup";
+
     const colorInput = document.createElement("input");
     colorInput.type = "color";
-    colorInput.value = inputElement.value || "#000000"; // Default to black if empty
+    colorInput.value = inputElement.value || "#000000";
     popup.appendChild(colorInput);
 
-    // Position popup near the input
     const rect = inputElement.getBoundingClientRect();
     popup.style.top = `${rect.bottom + window.scrollY}px`;
     popup.style.left = `${rect.left + window.scrollX}px`;
 
     document.body.appendChild(popup);
 
-    // Update input value and trigger callback on color change
+    // Trigger native color picker immediately
+    requestAnimationFrame(() => colorInput.click());
+
     colorInput.addEventListener("input", () => {
         inputElement.value = colorInput.value;
         onColorSelect(colorInput.value);
     });
 
-    // Remove popup when clicking outside
     const closePopup = (e) => {
         if (!popup.contains(e.target) && e.target !== inputElement) {
+            popup.remove();
+            document.removeEventListener("click", closePopup);
+        }
+    };
+    setTimeout(() => document.addEventListener("click", closePopup), 0);
+}
+
+function showTimePicker(day, hoursElement, onTimeSelect) {
+    // Remove any existing popups
+    const existingPopup = document.querySelector(".time-picker-popup");
+    if (existingPopup) existingPopup.remove();
+
+    // Create popup
+    const popup = document.createElement("div");
+    popup.className = "time-picker-popup";
+
+    // Add header
+    const header = document.createElement("h3");
+    header.className = "popup-header";
+    const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1); // Capitalize the day
+    header.textContent = `Opening Hours ${capitalizedDay}`;
+    popup.appendChild(header);
+
+    // Open time input
+    const openLabel = document.createElement("label");
+    openLabel.textContent = "Open Time:";
+    const openInput = document.createElement("input");
+    openInput.type = "time";
+    openInput.value = hoursElement.value.split(" - ")[0] || "";
+    popup.appendChild(openLabel);
+    popup.appendChild(openInput);
+
+    // Close time input
+    const closeLabel = document.createElement("label");
+    closeLabel.textContent = "Close Time:";
+    const closeInput = document.createElement("input");
+    closeInput.type = "time";
+    closeInput.value = hoursElement.value.split(" - ")[1] || "";
+    popup.appendChild(closeLabel);
+    popup.appendChild(closeInput);
+
+    // Save button
+    const saveButton = document.createElement("button");
+    saveButton.textContent = "Save";
+    saveButton.addEventListener("click", () => {
+        const openTime = openInput.value;
+        const closeTime = closeInput.value;
+        const newHours = openTime && closeTime ? `${openTime} - ${closeTime}` : "Closed";
+        hoursElement.value = newHours;
+        onTimeSelect(day, newHours);
+        popup.remove();
+    });
+    popup.appendChild(saveButton);
+
+    // Position popup near the hours element
+    const rect = hoursElement.getBoundingClientRect();
+    popup.style.top = `${rect.bottom + window.scrollY}px`;
+    popup.style.left = `${rect.left + window.scrollX}px`;
+
+    document.body.appendChild(popup);
+
+    // Close popup when clicking outside
+    const closePopup = (e) => {
+        if (!popup.contains(e.target) && e.target !== hoursElement) {
             popup.remove();
             document.removeEventListener("click", closePopup);
         }
@@ -491,4 +662,7 @@ document.getElementById("resetButton").addEventListener("click", () => {
     } else {
         alert("Cannot reset — missing user or club info.");
     }
+
+
+
 });

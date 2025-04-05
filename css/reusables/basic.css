@@ -98,6 +98,13 @@ summary {
     justify-content: center;
 }
 
+#primaryColor:hover,
+#secondaryColor:hover,
+#font:hover {
+    cursor: pointer;
+}
+
+
 /* Responsive Adjustments TODO */
 /*@media (max-width: 600px) {*/
 /**/

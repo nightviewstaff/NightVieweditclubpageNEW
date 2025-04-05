@@ -20,7 +20,25 @@ export function updateIPhoneDisplay(data) {
         // Club Name
         const clubName = iphoneContainer.querySelector(".club-name h1");
         clubName.textContent = displayName || "Club Name";
-        clubName.style.color = primaryColor || "inherit"; // Apply primary color to club name
+
+// Use CSS variable fallback for "NightView Green"
+        clubName.style.color =
+            primaryColor === "NightView Green" || !primaryColor
+                ? "var(--night-view-green)"
+                : primaryColor;
+
+        const clubHeader = iphoneContainer.querySelector(".club-header");
+
+// Colors and Font
+        if (clubHeader) {
+            // Use CSS variable fallback for "NightView Black"
+            clubHeader.style.backgroundColor =
+                secondaryColor === "NightView Black" || !secondaryColor
+                    ? "var(--color-black)"
+                    : secondaryColor;
+
+            clubHeader.style.fontFamily = font || "var(--font-primary)";
+        }
 
         // Logo
         iphoneContainer.querySelector(".logo-container img").src = logo;
@@ -31,11 +49,11 @@ export function updateIPhoneDisplay(data) {
             : "../images/default_type.png";
 
         // Age Restriction
+        // TODO If 18 or bigger write it
         iphoneContainer.querySelector(".age-restriction").textContent =
-            ageRestriction ? `${ageRestriction}+` : "18+";
+            ageRestriction ? `${ageRestriction}+` : "Unknown age restriction";
 
         // Colors and Font
-        const clubHeader = iphoneContainer.querySelector(".club-header");
         if (clubHeader) {
             clubHeader.style.backgroundColor = secondaryColor || "transparent"; // Apply secondary color to club-header
             clubHeader.style.fontFamily = font;

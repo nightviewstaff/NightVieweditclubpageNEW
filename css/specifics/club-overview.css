@@ -89,6 +89,7 @@
     width: 100%;
 }
 
+
 .detail-box {
     flex: 1;
     background-color: var(--color-white);
@@ -97,6 +98,44 @@
     border-radius: 5px;
     text-align: center;
     /*border: var(--night-view-purple) 2px solid;*/
+
+    cursor: pointer; /* Show a pointer cursor to indicate clickability */
+    transition: background-color 0.2s; /* Smooth transition for hover effect */
+}
+
+
+.detail-box:hover {
+    cursor: pointer;
+    background-color: var(--night-view-green); /* Light gray background on hover for feedback */
+}
+
+.detail-box input {
+    cursor: pointer; /* Show a pointer cursor to indicate clickability */
+    background-color: transparent; /* Inherits .detail-box background */
+    border: none;                 /* Removes default input borders */
+    color: inherit;               /* Matches .detail-box text color */
+    font: inherit;                /* Matches .detail-box font */
+    padding: 0;                   /* Removes default padding */
+    margin: 0;                    /* Removes default margins */
+    width: 100%;                  /* Fills .detail-box width */
+    text-align: center;           /* Centers text like spans */
+    box-sizing: border-box;       /* Ensures padding/borders don’t add size */
+    -webkit-appearance: none;     /* Removes browser-specific styles */
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.detail-box input[readonly] {
+    cursor: default;              /* Matches non-editable span behavior */
+}
+
+.detail-box input:focus {
+    outline: none;                /* Removes focus outline */
+}
+
+.detail-box input::placeholder {
+    color: var(--color-black);    /* Matches span text color */
+    opacity: 1;                   /* Ensures full visibility */
 }
 
 .detail-box-age {
