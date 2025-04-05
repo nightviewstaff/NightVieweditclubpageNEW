@@ -1,5 +1,8 @@
 // iphone-display-updater.js
-export function updateIPhoneDisplay(data) {
+import {getClubSession} from "../utilities/session.js";
+import { getOfferImageUrl,mainOfferImgUrl } from "./club-overview.js";
+
+export async function updateIPhoneDisplay(data) {
     const {
         displayName,
         logo,
@@ -20,23 +23,17 @@ export function updateIPhoneDisplay(data) {
         // Club Name
         const clubName = iphoneContainer.querySelector(".club-name h1");
         clubName.textContent = displayName || "Club Name";
-
-// Use CSS variable fallback for "NightView Green"
         clubName.style.color =
             primaryColor === "NightView Green" || !primaryColor
                 ? "var(--night-view-green)"
                 : primaryColor;
 
         const clubHeader = iphoneContainer.querySelector(".club-header");
-
-// Colors and Font
         if (clubHeader) {
-            // Use CSS variable fallback for "NightView Black"
             clubHeader.style.backgroundColor =
                 secondaryColor === "NightView Black" || !secondaryColor
                     ? "var(--color-black)"
                     : secondaryColor;
-
             clubHeader.style.fontFamily = font || "var(--font-primary)";
         }
 
@@ -49,19 +46,30 @@ export function updateIPhoneDisplay(data) {
             : "../images/default_type.png";
 
         // Age Restriction
-        // TODO If 18 or bigger write it
         iphoneContainer.querySelector(".age-restriction").textContent =
             ageRestriction ? `${ageRestriction}+` : "Unknown age restriction";
-
-        // Colors and Font
-        if (clubHeader) {
-            clubHeader.style.backgroundColor = secondaryColor || "transparent"; // Apply secondary color to club-header
-            clubHeader.style.fontFamily = font;
-        }
 
         // Opening Hours
         iphoneContainer.querySelector(".opening-hours").textContent =
             openingHours ? `${openingHours} today` : "Closed today";
+
+        // Offer Image
+        const offerImage = iphoneContainer.querySelector(".offer-image img");
+        const offerHeader = iphoneContainer.querySelector(".offer-image h2");
+        const today = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+        const clubId = getClubSession();
+        let offerUrl = await getOfferImageUrl(clubId, today); // Daily offer first
+        if (!offerUrl) {
+            offerUrl = mainOfferImgUrl; // Fall back to main offer
+        }
+        if (offerUrl) {
+            offerImage.src = offerUrl;
+            offerImage.style.display = "block";
+            offerHeader.style.display = "block";
+        } else {
+            offerImage.style.display = "none";
+            offerHeader.style.display = "none";
+        }
 
         // Map
         initMap(lat, lon, logo);

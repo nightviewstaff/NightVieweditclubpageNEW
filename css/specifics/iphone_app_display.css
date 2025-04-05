@@ -1,3 +1,4 @@
+/*iphone_app_display.css*/
 
 .iphone-wrapper {
     flex: 1;
@@ -9,7 +10,6 @@
 .iphone-content {
     flex: 1;
 }
-
 
 .right-container {
     background-color: var(--color-black);
@@ -33,30 +33,25 @@
     position: relative;
 }
 
-/*.right-container {*/
-/*    background-color: var(--color-black);*/
-/*    color: var(--color-white);*/
-/*    border-radius: 48px;*/
-/*    overflow: hidden;*/
+.offer-image {
+    position: relative;
+    width: 100%;
+    height: auto;
+    text-align: center; /* Center the header and image */
+}
 
-/*    display: flex;*/
-/*    flex-direction: column;*/
-/*    justify-content: flex-start;*/
+.offer-image h2 {
+    margin: 10px 0; /* Spacing above and below the header */
+    color: var(--color-white);
+}
 
-/*    !* Bigger iPhone feel *!*/
-/*    width: 100%;*/
-/*    max-width: 400px;   !* from 360px → 400px *!*/
-/*    aspect-ratio: 9 / 19.5;*/
-/*    max-height: 800px;  !* from 740px → 800px *!*/
-/*    height: auto;*/
-
-/*    flex-shrink: 0;*/
-/*    flex-grow: 0;*/
-/*    align-self: flex-start;*/
-
-/*    border: 1px solid var(--night-view-green);*/
-/*    position: relative;*/
-/*}*/
+.offer-image img {
+    width: 100%; /* Fit within container width */
+    height: auto; /* Maintain aspect ratio */
+    max-height: 200px; /* Limit height to prevent overflow; adjust as needed */
+    object-fit: cover; /* Crop if necessary while preserving aspect ratio */
+    display: block; /* Remove inline spacing */
+}
 
 #map {
     flex-grow: 1; /* Allows the map to take up remaining space */

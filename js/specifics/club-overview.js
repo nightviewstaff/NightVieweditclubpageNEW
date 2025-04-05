@@ -18,6 +18,9 @@ import {clubDataCache, setClubDataCache} from "../utilities/global.js"; // Impor
 import {getClubSession, getSession} from "../utilities/session.js";
 import {updateIPhoneDisplay} from "./iphone-display-updater.js";
 
+export let mainOfferImgUrl;
+let localClubData; // Local copy of club data for changes
+
 // DOMContentLoaded event listener for initial setup
 document.addEventListener("DOMContentLoaded", () => {
     const uid = getSession().uid;
@@ -50,18 +53,6 @@ function fetchStorageUrl(path, fallbackUrl = "") {
             console.warn(`Could not fetch ${path}, using fallback`, error);
             return fallbackUrl;
         });
-}
-
-// Utility function to format opening hours (assumed implementation)
-function formatOpeningHours(openingHours) {
-    if (!openingHours || typeof openingHours !== "object") return "Not set";
-    return Object.entries(openingHours)
-        .map(([day, hours]) =>
-            hours && hours.open && hours.close
-                ? `${day}: ${hours.open} - ${hours.close}`
-                : `${day}: Closed`
-        )
-        .join(", ");
 }
 
 // Main function to fetch and display club data
@@ -115,12 +106,20 @@ async function loadData(user, selectedClubId) {
             const dbData = doc.data();
             // Inside loadData, after const dbData = doc.data();
             console.log("Club data:", dbData); // Log full data to inspect
+            localClubData = {...dbData};
+
+
+            mainOfferImgUrl = dbData.main_offer_img
+                ? await fetchStorageUrl(`main_offers/${dbData.main_offer_img}`, null)
+                : null;
 
 
             console.log("Fetched club data for", selectedClubId, ":", dbData);
 
             // Populate clubData object
             const clubData = {
+
+                name: dbData.name || "Unknown Club",
                 logo: await fetchStorageUrl(
                     `club_logos/${dbData.logo}`,
                     "../images/default_logo.png"
@@ -128,11 +127,10 @@ async function loadData(user, selectedClubId) {
                     console.log(`Club logo URL for ${dbData.logo}:`, url);
                     return url;
                 }),
-                name: dbData.name || "Unknown Club",
                 ageRestriction:
                     dbData.age_restriction && dbData.age_restriction >= 16
                         ? `${dbData.age_restriction}+`
-                        : "Not set",
+                        : "Unknown age restriction",
                 openingHours: formatOpeningHours(dbData.opening_hours),
                 distance: "300 m",
                 isFavorite: true,
@@ -257,16 +255,24 @@ async function loadData(user, selectedClubId) {
                 if (ageElement) {
                     ageElement.value =
                         ageToDisplay !== undefined && ageToDisplay !== null
-                            ? ageToDisplay < 16
+                            ? ageToDisplay < 18
                                 ? "Not set"
                                 : `${ageToDisplay}+`
                             : "Not set";
                 }
 
-                const hasOffer = dbData.daily_offers?.[day] && dbData.daily_offers[day] !== "";
+                const hasSpecificOffer = dbData.opening_hours?.[day]?.daily_offer && dbData.opening_hours[day].daily_offer !== "";
+
+                const hasMainOffer = mainOfferImgUrl !== null;
                 if (offerButton) {
-                    offerButton.textContent = hasOffer ? "Offer Available" : "No Offer";
-                    if (hasOffer) offerButton.classList.add("has-offer");
+                    if (hasSpecificOffer) {
+                        offerButton.textContent = "View Specific Offer";
+                    } else if (hasMainOffer) {
+                        offerButton.textContent = "View Main Offer";
+                    } else {
+                        offerButton.textContent = "Add Offer";
+                    }
+                    offerButton.classList.toggle("has-offer", hasSpecificOffer || hasMainOffer);
                     offerButton.addEventListener("click", () =>
                         handleOfferAction(day, doc.id, offerButton)
                     );
@@ -330,65 +336,18 @@ async function loadData(user, selectedClubId) {
     bindLeftInputs();
 }
 
-function showAgePicker(day, ageElement, onAgeSelect) {
-    // Remove any existing popups
-    const existingPopup = document.querySelector(".age-picker-popup");
-    if (existingPopup) existingPopup.remove();
-
-    // Create popup
-    const popup = document.createElement("div");
-    popup.className = "age-picker-popup";
-
-    // Add header
-    const header = document.createElement("h3");
-    header.className = "popup-header";
-    const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1); // Capitalize the day
-    header.textContent = `Age Restriction ${capitalizedDay}`;
-    popup.appendChild(header);
-
-    // Age input
-    const ageLabel = document.createElement("label");
-    ageLabel.textContent = "Age Limit:";
-    const ageInput = document.createElement("input");
-    ageInput.type = "number";
-    ageInput.min = 16;
-    ageInput.max = 35;
-    ageInput.value = ageElement.value || "";
-    popup.appendChild(ageLabel);
-    popup.appendChild(ageInput);
-
-    // Save button
-    const saveButton = document.createElement("button");
-    saveButton.textContent = "Save";
-    saveButton.addEventListener("click", () => {
-        let newAge = parseInt(ageInput.value);
-        if (isNaN(newAge) || newAge < 16 || newAge > 35) {
-            alert("Please enter an age between 16 and 35.");
-            return;
-        }
-        const displayAge = newAge < 16 ? "??" : `${newAge}+`;
-        ageElement.value = displayAge;
-        onAgeSelect(day, newAge);
-        popup.remove();
-    });
-    popup.appendChild(saveButton);
-
-    // Position popup near the age element
-    const rect = ageElement.getBoundingClientRect();
-    popup.style.top = `${rect.bottom + window.scrollY}px`;
-    popup.style.left = `${rect.left + window.scrollX}px`;
-
-    document.body.appendChild(popup);
-
-    // Close popup when clicking outside
-    const closePopup = (e) => {
-        if (!popup.contains(e.target) && e.target !== ageElement) {
-            popup.remove();
-            document.removeEventListener("click", closePopup);
-        }
-    };
-    setTimeout(() => document.addEventListener("click", closePopup), 0);
+// Utility function to format opening hours (assumed implementation)
+function formatOpeningHours(openingHours) {
+    if (!openingHours || typeof openingHours !== "object") return "Not set";
+    return Object.entries(openingHours)
+        .map(([day, hours]) =>
+            hours && hours.open && hours.close
+                ? `${day}: ${hours.open} - ${hours.close}`
+                : `${day}: Closed`
+        )
+        .join(", ");
 }
+
 
 function bindLeftInputs() {
     const nameInput = document.getElementById("clubNameInput");
@@ -441,7 +400,6 @@ function bindLeftInputs() {
 function getTodayKey() {
     return new Date().toLocaleDateString("en-US", {weekday: "long"}).toLowerCase();
 }
-
 function setupLivePreviewBindings() {
     const today = getTodayKey();
 
@@ -466,7 +424,7 @@ function setupLivePreviewBindings() {
             displayName: inputs.displayName.value,
             logo: inputs.logo.src,
             type: inputs.type.value,
-            ageRestriction: ageElem?.textContent?.replace("+", "") || "18",
+            ageRestriction: ageElem?.value?.replace("+", "") || "18",
             entryPrice: parseFloat(inputs.entryPrice.value || "0"),
             primaryColor: inputs.primaryColor.value,
             secondaryColor: inputs.secondaryColor.value,
@@ -484,13 +442,13 @@ function setupLivePreviewBindings() {
         if (input) input.addEventListener("input", dynamicPreviewUpdate);
     });
 
-    // Bind to today's hours input
-    const hoursElem = document.getElementById(`${today}-hours`);
-    if (hoursElem) hoursElem.addEventListener("input", dynamicPreviewUpdate);
-
-    // Bind to today's age element (still using DOMSubtreeModified if needed)
+    // Use modern MutationObserver instead of DOMSubtreeModified
     const ageElem = document.getElementById(`${today}-age`);
-    if (ageElem) ageElem.addEventListener("DOMSubtreeModified", dynamicPreviewUpdate);
+    const hoursElem = document.getElementById(`${today}-hours`);
+
+    const observer = new MutationObserver(dynamicPreviewUpdate);
+    if (ageElem) observer.observe(ageElem, {attributes: true, childList: true, subtree: true});
+    if (hoursElem) observer.observe(hoursElem, {attributes: true, childList: true, subtree: true});
 
     // Initial update
     dynamicPreviewUpdate();
@@ -530,7 +488,6 @@ function showColorPicker(inputElement, onColorSelect) {
     };
     setTimeout(() => document.addEventListener("click", closePopup), 0);
 }
-
 function showTimePicker(day, hoursElement, onTimeSelect) {
     // Remove any existing popups
     const existingPopup = document.querySelector(".time-picker-popup");
@@ -539,11 +496,12 @@ function showTimePicker(day, hoursElement, onTimeSelect) {
     // Create popup
     const popup = document.createElement("div");
     popup.className = "time-picker-popup";
+    popup.setAttribute("tabindex", "0"); // Make the popup focusable
 
     // Add header
     const header = document.createElement("h3");
     header.className = "popup-header";
-    const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1); // Capitalize the day
+    const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1);
     header.textContent = `Opening Hours ${capitalizedDay}`;
     popup.appendChild(header);
 
@@ -578,12 +536,23 @@ function showTimePicker(day, hoursElement, onTimeSelect) {
     });
     popup.appendChild(saveButton);
 
+    // Add Enter key support
+    popup.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            saveButton.click();
+        }
+    });
+
     // Position popup near the hours element
     const rect = hoursElement.getBoundingClientRect();
     popup.style.top = `${rect.bottom + window.scrollY}px`;
     popup.style.left = `${rect.left + window.scrollX}px`;
 
     document.body.appendChild(popup);
+
+    // Focus the popup for immediate keyboard interaction
+    popup.focus();
 
     // Close popup when clicking outside
     const closePopup = (e) => {
@@ -595,26 +564,177 @@ function showTimePicker(day, hoursElement, onTimeSelect) {
     setTimeout(() => document.addEventListener("click", closePopup), 0);
 }
 
+function showAgePicker(day, ageElement, onAgeSelect) {
+    // Remove any existing popups
+    const existingPopup = document.querySelector(".age-picker-popup");
+    if (existingPopup) existingPopup.remove();
 
+    // Create popup
+    const popup = document.createElement("div");
+    popup.className = "age-picker-popup";
+    popup.setAttribute("tabindex", "0"); // Make the popup focusable
 
-// Function to handle adding or deleting an offer picture
-async function handleOfferAction(day, clubId, offerButton) {
-    const storagePath = `daily_offers/${clubId}_${day}.jpg`;
-    const storageRef = ref(storage, storagePath);
-    const hasOffer = offerButton.textContent === "Offer Available";
+    // Add header
+    const header = document.createElement("h3");
+    header.className = "popup-header";
+    const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1);
+    header.textContent = `Age Restriction ${capitalizedDay}`;
+    popup.appendChild(header);
 
-    if (hasOffer) {
-        try {
-            await deleteObject(storageRef);
-            const clubDocRef = doc(db, "club_data", clubId);
-            await updateDoc(clubDocRef, {[`daily_offers.${day}`]: ""});
-            offerButton.textContent = "No Offer";
-            offerButton.classList.remove("has-offer");
-            alert(`Offer picture for ${day} deleted successfully.`);
-        } catch (error) {
-            console.error(`Error deleting offer picture for ${day}:`, error);
-            alert(`Failed to delete offer picture for ${day}.`);
+    // Age input
+    const ageLabel = document.createElement("label");
+    ageLabel.textContent = "Age Limit:";
+    const ageInput = document.createElement("input");
+    ageInput.type = "number";
+    ageInput.min = 16;
+    ageInput.max = 35;
+    // Set default to 16 if no age is chosen
+    const currentAge = parseInt(ageElement.value.replace("+", ""));
+    ageInput.value = ageElement.value === "Not set" || isNaN(currentAge) ? 16 : currentAge;
+    popup.appendChild(ageLabel);
+    popup.appendChild(ageInput);
+
+    // Save button
+    const saveButton = document.createElement("button");
+    saveButton.textContent = "Save";
+    saveButton.addEventListener("click", () => {
+        let newAge = parseInt(ageInput.value);
+        if (isNaN(newAge) || newAge < 16 || newAge > 35) {
+            alert("Please enter an age between 16 and 35.");
+            return;
         }
+        const displayAge = newAge < 18 ? "??" : `${newAge}+`; // Fixed condition to < 18
+        ageElement.value = displayAge;
+        onAgeSelect(day, newAge);
+        popup.remove();
+    });
+    popup.appendChild(saveButton);
+
+    // Add Enter key support
+    popup.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            saveButton.click();
+        }
+    });
+
+    // Position popup near the age element
+    const rect = ageElement.getBoundingClientRect();
+    popup.style.top = `${rect.bottom + window.scrollY}px`;
+    popup.style.left = `${rect.left + window.scrollX}px`;
+
+    document.body.appendChild(popup);
+
+    // Focus the popup for immediate keyboard interaction
+    popup.focus();
+
+    // Close popup when clicking outside
+    const closePopup = (e) => {
+        if (!popup.contains(e.target) && e.target !== ageElement) {
+            popup.remove();
+            document.removeEventListener("click", closePopup);
+        }
+    };
+    setTimeout(() => document.addEventListener("click", closePopup), 0);
+}
+
+function showOfferPopup(day, clubId, offerUrl, specificOfferPath, offerButton, hasSpecificOffer) {
+    const popup = document.createElement("div");
+    popup.className = "offer-popup";
+
+    const header = document.createElement("h3");
+    header.className = "popup-header";
+    const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1);
+    header.textContent = `Offer for ${capitalizedDay}`;
+    popup.appendChild(header);
+
+    const img = document.createElement("img");
+    img.src = offerUrl || "../images/default_offer.png";
+    img.alt = `Offer for ${day}`;
+    img.style.maxWidth = "100%";
+    img.style.maxHeight = "80vh";
+    popup.appendChild(img);
+
+    if (hasSpecificOffer) {
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete Specific Offer";
+        deleteButton.addEventListener("click", async () => {
+            if (confirm(`Are you sure you want to delete the specific offer for ${day}?`)) {
+                localClubData.daily_offers[day] = ""; // Update locally
+                offerButton.textContent = mainOfferImgUrl ? "View Main Offer" : "Add Offer";
+                offerButton.classList.toggle("has-offer", mainOfferImgUrl !== null);
+                alert(`Specific offer picture for ${day} deleted successfully. (Will be removed from storage on save)`);
+                popup.remove();
+
+                if (day === getTodayKey()) {
+                    updateOfferImage(clubId, day);
+                }
+            }
+        });
+        popup.appendChild(deleteButton);
+    }
+
+    const uploadButton = document.createElement("button");
+    uploadButton.textContent = "Upload Specific Offer";
+    uploadButton.addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.click();
+        input.onchange = async () => {
+            const file = input.files[0];
+            if (!file) return;
+
+            try {
+                const storagePath = `daily_offers/${clubId}_${day}.webp`;
+                await uploadBytes(ref(storage, storagePath), file);
+                localClubData.daily_offers[day] = `${clubId}_${day}.webp`; // Update locally
+                offerButton.textContent = "View Specific Offer";
+                offerButton.classList.add("has-offer");
+                alert(`Specific offer picture for ${day} uploaded successfully.`);
+                popup.remove();
+
+                if (day === getTodayKey()) {
+                    updateOfferImage(clubId, day);
+                }
+            } catch (error) {
+                console.error(`Error uploading specific offer picture for ${day}:`, error);
+                alert(`Failed to upload specific offer picture for ${day}.`);
+            }
+        };
+    });
+    popup.appendChild(uploadButton);
+
+    popup.style.position = "fixed";
+    popup.style.top = "50%";
+    popup.style.left = "50%";
+    popup.style.transform = "translate(-50%, -50%)";
+    popup.style.backgroundColor = "white";
+    popup.style.padding = "20px";
+    popup.style.boxShadow = "0 0 10px rgba(0,0,0,0.5)";
+    popup.style.zIndex = "1000";
+
+    document.body.appendChild(popup);
+
+    const closePopup = (e) => {
+        if (!popup.contains(e.target)) {
+            popup.remove();
+            document.removeEventListener("click", closePopup);
+        }
+    };
+    setTimeout(() => document.addEventListener("click", closePopup), 0);
+}
+
+async function handleOfferAction(day, clubId, offerButton) {
+    const hasSpecificOffer = offerButton.textContent === "View Specific Offer";
+    const hasMainOffer = mainOfferImgUrl !== null;
+
+    if (hasSpecificOffer || hasMainOffer) {
+        const offerUrl = hasSpecificOffer
+            ? await getOfferImageUrl(clubId, day)
+            : mainOfferImgUrl;
+        const specificOfferPath = hasSpecificOffer ? `daily_offers/${localClubData.daily_offers[day]}` : null;
+        showOfferPopup(day, clubId, offerUrl, specificOfferPath, offerButton, hasSpecificOffer);
     } else {
         const input = document.createElement("input");
         input.type = "file";
@@ -623,20 +743,66 @@ async function handleOfferAction(day, clubId, offerButton) {
         input.onchange = async () => {
             const file = input.files[0];
             if (!file) return;
+
+            offerButton.textContent = "Uploading...";
+            offerButton.disabled = true;
+
             try {
-                await uploadBytes(storageRef, file);
-                const clubDocRef = doc(db, "club_data", clubId);
-                await updateDoc(clubDocRef, {
-                    [`daily_offers.${day}`]: `${clubId}_${day}.jpg`,
-                });
-                offerButton.textContent = "Offer Available";
+                const storagePath = `daily_offers/${clubId}_${day}.webp`;
+                await uploadBytes(ref(storage, storagePath), file);
+                localClubData.daily_offers[day] = `${clubId}_${day}.webp`; // Update locally
+                offerButton.textContent = "View Specific Offer";
                 offerButton.classList.add("has-offer");
-                alert(`Offer picture for ${day} uploaded successfully.`);
+                alert(`Specific offer picture for ${day} uploaded successfully.`);
+
+                if (day === getTodayKey()) {
+                    updateOfferImage(clubId, day);
+                }
             } catch (error) {
-                console.error(`Error uploading offer picture for ${day}:`, error);
-                alert(`Failed to upload offer picture for ${day}.`);
+                console.error(`Error uploading specific offer picture for ${day}:`, error);
+                alert(`Failed to upload specific offer picture for ${day}.`);
+            } finally {
+                offerButton.disabled = false;
             }
         };
+    }
+}
+
+export async function getOfferImageUrl(clubId, day) {
+    const clubData = clubDataCache.find(club => club.id === clubId) || localClubData;
+    const dayData = clubData?.opening_hours?.[day];
+
+    const offerFileName = dayData?.daily_offer ?? null;
+    if (offerFileName) {
+        const storagePath = `daily_offers/${offerFileName}`;
+        try {
+            const url = await getDownloadURL(ref(storage, storagePath));
+            return url;
+        } catch (error) {
+            console.warn(`No offer image found for ${day}:`, error);
+            return null;
+        }
+    }
+    return null;
+}
+
+
+async function updateOfferImage(clubId, day) {
+    const offerImage = document.querySelector(".offer-image img");
+    const offerHeader = document.querySelector(".offer-image h2");
+    if (day === getTodayKey()) {
+        let offerUrl = await getOfferImageUrl(clubId, day); // Daily offer first
+        if (!offerUrl) {
+            offerUrl = mainOfferImgUrl; // Fall back to main offer
+        }
+        if (offerUrl) {
+            offerImage.src = offerUrl;
+            offerImage.style.display = "block";
+            offerHeader.style.display = "block";
+        } else {
+            offerImage.style.display = "none";
+            offerHeader.style.display = "none";
+        }
     }
 }
 

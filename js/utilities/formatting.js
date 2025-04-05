@@ -30,12 +30,6 @@ export const clubTypeImages = {
     "wine_bar": "wine_bar_icon.png"
 };
 
-export class StringUtil {
-    static truncateString(str, maxLength) {
-        if (!str) return MESSAGES.MISSING_DRONE; // Default
-        return str.length > maxLength ? `${str.substring(0, maxLength)}...` : str;
-    }
-}
 
 
 

@@ -109,6 +109,10 @@
     background-color: var(--night-view-green); /* Light gray background on hover for feedback */
 }
 
+.detail-box:hover button {
+    cursor: pointer;
+}
+
 .detail-box input {
     cursor: pointer; /* Show a pointer cursor to indicate clickability */
     background-color: transparent; /* Inherits .detail-box background */
