@@ -51,7 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const docSnap = await getDoc(doc(db, "user_data", uid));
         if (!docSnap.exists()) return 'user';
         const data = docSnap.data();
-        return data.is_admin === true ? 'admin' :
-            Array.isArray(data.owned_clubs) && data.owned_clubs.length > 0 ? 'owner' : 'user';
+
+        if (data.is_admin === true) return 'admin';
+        if (Array.isArray(data.owned_clubs) && data.owned_clubs.length > 0) return 'owner';
+        if (Array.isArray(data.staff_clubs) && data.staff_clubs.length > 0) return 'staff';
+
+        return 'user';
     }
+
 });

@@ -1,0 +1,20 @@
+.club-list {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: #f7f7f7;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    font-family: sans-serif;
+}
+
+.club-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.club-row:last-child {
+    border-bottom: none;
+}

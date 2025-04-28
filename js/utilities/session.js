@@ -11,14 +11,24 @@ export function saveClubSession(selectedClubId) {
 export function getSession() {
     const uid = sessionStorage.getItem('userUid');
     const role = sessionStorage.getItem('userRole');
-    return uid && role ? {uid, role} : null;
+    return uid && role ? { uid, role } : null;
 }
 
 export function getClubSession() {
     return sessionStorage.getItem('selectedClubId');
 }
 
+export function checkSession() {
+    const session = getSession();
+    if (!session) {
+        window.location.href = '/NightVieweditclubpage/html/login.html';
+        return false;
+    }
+    return true;
+}
+
 export function clearSession() {
     sessionStorage.clear();
+    localStorage.clear();
 }
 

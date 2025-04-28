@@ -14,6 +14,7 @@
     --night-view-purple: #591C61;
     --color-light-blue: #02BDFB;
     --color-medium-blue: #017FB5;
+    --color-cool-blue: #2196f3;
     --color-purple: #9391c9;
 
     /* Status Colors */
@@ -75,8 +76,6 @@ h1, h2, h3, h4, h5, h6 {
     text-align: center;
 }
 
-/* Flex Utility Classes */
-
 
 /* Anchor Styles */
 a {
@@ -88,7 +87,6 @@ a:hover {
     color: var(--night-view-green);
     text-decoration: underline;
 }
-
 
 summary {
     font-size: var(--font-size-large);
@@ -104,8 +102,23 @@ summary {
     cursor: pointer;
 }
 
+textarea::placeholder{
+    color: var(--color-white);
+    font-size: large;
+}
+
+.nvpurple{
+    color: var(--night-view-purple);
+}
 
 /* Responsive Adjustments TODO */
 /*@media (max-width: 600px) {*/
 /**/
 /*}*/
+.nvgreen {
+    color: var(--night-view-green);
+}
+
+.white {
+    color: var(--color-white);
+}

@@ -50,6 +50,44 @@
     height: 100%;
 }
 
+.image-scroll-container {
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--night-view-green);
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.follower-container {
+    display: grid; /* THIS is what makes the magic happen */
+    grid-template-columns: 2fr 1fr; /* Left side (follower), Right side (notification) */
+    gap: 3vw;
+    align-items: start;
+    padding: 2vw;
+
+}
+
+
+.data-container div > div {
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+            45deg,
+            #ececec,
+            #ececec 10px,
+            #dcdcdc 10px,
+            #dcdcdc 20px
+    ); /* Placeholder stripe background for graphs */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-style: italic;
+}
 
 
 @media (max-width: 768px) {

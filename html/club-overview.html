@@ -17,6 +17,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script type="module" src="../js/utilities/init.js"></script>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
     <script type="module" src="../js/utilities/navbar.js"></script>
@@ -35,7 +36,7 @@
             <div class="header-row">
                 <img src="" id="clubTypeImg" alt="Club Type" class="header-img">
                 <h1 id="clubName" class="header-title">Loading...</h1>
-                <img src="" id="clubLogoImg" alt="Club Logo" class="header-img">
+                <img src="" id="clubLogoImg" alt="Club Logo" class="header-img" style="cursor: pointer">
             </div>
 
         </div>
@@ -62,11 +63,12 @@
                 </details>
 
                 <!-- Images Section -->
-                                <details>
+                <details>
                     <summary>Images</summary>
-                    <div class="">
-                        <div>
-            <button></button>
+                    <div id="imageManager" class="image-scroll-container">
+                        <!-- Dynamic buttons will be injected here -->
+                        <div class="image-button-wrapper">
+                            <button id="addImageBtn" class="offer-button add-offer">➕ Add Image</button>
                         </div>
                     </div>
                 </details>
@@ -132,14 +134,14 @@
                     </div>
                     <div class="field-item" id="fontFieldItem">
                         <h3 class="day-label">Font</h3>
-                        <input type="text" id="font" placeholder="Loading..." readonly style="cursor: pointer;"/>
+                        <select id="font" style="cursor: pointer;" placeholder="Loading..."></select>
                     </div>
 
                 </details>
             </div>
 
             <div class="right-section">
-                <details>
+                <details open>
                     <summary>Opening hours</summary>
                     <!--                    TODO COOL details-->
                     <div class="club-details">
@@ -343,26 +345,6 @@
 </div>
 
 
-<!--&lt;!&ndash; Language Selector &ndash;&gt;-->
-
-<!--<div id="language-switch">-->
-<!--    <a href="#" id="flag-selector">-->
-<!--        <img id="current-flag" src="../../images/flags/gb.png" alt="Selected Flag">-->
-<!--    </a>-->
-<!--</div>-->
-
-
-<!--&lt;!&ndash; Popup Overlay &ndash;&gt;-->
-<!--<div id="popup-overlay"></div>-->
-
-<!--&lt;!&ndash; Flag Selection Popup &ndash;&gt;-->
-<!--<div id="flag-popup">-->
-<!--    <p>Select your language:</p>-->
-<!--    <div id="flag-options">-->
-<!--        <img src="../images/extras/dk.png" alt="Danish" data-flag="../../images/flags/dk.png">-->
-<!--        &lt;!&ndash;   Loop to get all&ndash;&gt;-->
-<!--    </div>-->
-<!--</div>-->
 
 
 </body>

@@ -29,19 +29,20 @@
     text-align: center;
 }
 
-
 .login-btn:hover {
     background-color: var(--night-view-green);
     color: var(--color-white);
 }
+
 .offer-button {
     background: none;
     border: none;
-    color: #007bff; /* Blue color for clickable text, adjust as needed */
+    color: var(--color-red); /* Blue color for clickable text, adjust as needed */
     cursor: pointer;
     padding: 0;
     font-size: 1rem;
     text-decoration: underline;
+    font-weight: bold;
 }
 
 .offer-button:hover {
@@ -49,44 +50,55 @@
 }
 
 .offer-button.has-offer {
-    color: #28a745; /* Green color for "Offer Available", adjust as needed */
-}
-
-.offer-button.has-offer:hover {
-    color: #218838; /* Darker green on hover, adjust as needed */
+    color: var(--night-view-purple); /* Green color for "Offer Available", adjust as needed */
 }
 
 .button-delete {
     background-color: var(--color-red);
 }
 
-/*.button-edit {*/
-/*    background-color: var(--color-light-blue);*/
-/*}*/
-
 .button-success {
     background-color: var(--night-view-green);
-
 }
 
 .button-disabled {
     background-color: var(--color-dark-gray);
-    color: var(--color-white);
+    /*background-color: var(--color-red);*/
     cursor: not-allowed;
+    opacity: 0.8;
 }
 
-/*!* Hover Effects *!*/
-/*.button-delete:hover {*/
-/*    transform: scale(1.1);*/
-/*    background-color: var(--color-dark-red);*/
-/*}*/
+.see-more-btn {
+    display: block;
+    margin: 20px auto;
+    padding: 10px 20px;
+    background-color: #222;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.see-more-btn:hover {
+    background-color: #444;
+}
 
-/*.button-edit:hover {*/
-/*    transform: scale(1.1);*/
-/*    background-color: var(--color-medium-blue);*/
-/*}*/
 
-/*.button-success:hover {*/
-/*    transform: scale(1.1);*/
-/*    background-color: var(--color-dark-green);*/
-/*}*/
+.button-notification {
+    width: 95%;
+    height: 75%;
+    background-color: var(--color-white);
+    color: var(--night-view-green);
+    font-weight: bold;
+}
+
+button:hover {
+    background-color: var(--night-view-green);
+    color: var(--color-white);
+    /*border 10px solid var(--night-view-purple);*/
+}
+
+button-disabled:hover {
+    background-color: var(--color-red);
+    cursor: not-allowed;
+    opacity: 0.1;
+}

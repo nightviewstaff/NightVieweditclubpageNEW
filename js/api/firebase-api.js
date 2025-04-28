@@ -1,6 +1,6 @@
 // firebase-api.js
 
-// Import the functions from the Firebase CDN
+// Import Firebase modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-app.js";
 import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-analytics.js";
 import {
@@ -9,7 +9,8 @@ import {
     getDocs as firestoreGetDocs,
     doc as firestoreDoc,
     getDoc as firestoreGetDoc,
-    updateDoc as firestoreUpdateDoc
+    updateDoc as firestoreUpdateDoc,
+    serverTimestamp as firestoreServerTimestamp, addDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore.js";
 import {
     getStorage as firebaseGetStorage,
@@ -38,35 +39,36 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
-const auth = firebaseGetAuth(app); // Initialize auth
+const auth = firebaseGetAuth(app);
 
-// Export the initialized Firebase services and functions
+// Export initialized services
 export {
     app,
     analytics,
     db,
-    auth, // Export initialized auth
+    auth,
     logEvent,
-    // Firestore re-exports
-    firestoreGetDocs as getDocs,
+    // Firestore exports
     firestoreCollection as collection,
+    firestoreGetDocs as getDocs,
     firestoreDoc as doc,
     firestoreGetDoc as getDoc,
     firestoreUpdateDoc as updateDoc,
-    // Storage re-exports
+    firestoreServerTimestamp as serverTimestamp,
+    // Storage exports
     firebaseGetStorage as getStorage,
     firebaseRef as ref,
     firebaseGetDownloadURL as getDownloadURL,
     firebaseUploadBytes as uploadBytes,
     firebaseDeleteObject as deleteObject,
-    // Auth re-exports
+    // Auth exports
     firebaseGetAuth as getAuth,
     firebaseOnAuthStateChanged as onAuthStateChanged
 };
 
 /**
- * Logs all documents in a specified collection.
- * @param {string} collectionName The name of the Firestore collection.
+ * Logs all documents from a given Firestore collection.
+ * @param {string} collectionName
  */
 export async function logAllDocuments(collectionName = "club_data") {
     try {
@@ -75,6 +77,39 @@ export async function logAllDocuments(collectionName = "club_data") {
             console.log(`${doc.id} =>`, doc.data());
         });
     } catch (error) {
-        console.error("Error fetching documents:", error);
+        console.error("❌ Error fetching documents:", error);
     }
+}
+
+/**
+ * Uploads a notification document to Firestore.
+ * @param {Object} notificationData
+ */
+export async function uploadNotification({ header, message, createdBy, clubId, filters, scheduledFor }) {
+    try {
+        await addDoc(firestoreCollection(db, "notifications"), {
+            header,
+            message,
+            createdBy,
+            clubId,
+            filters,
+            scheduledFor,
+            createdAt: serverTimestamp(),
+            processed: false
+        });
+        console.log("✅ Notification uploaded successfully!");
+    } catch (err) {
+        console.error("❌ Error uploading notification:", err);
+        alert("Failed to upload notification. Try again.");
+    }
+}
+
+// Placeholder: future uploadNewClub function
+export function uploadNewClub() {
+    // TODO: Implement uploadNewClub
+}
+
+// Placeholder: future uploadClubChanges function
+export function uploadClubChanges() {
+    // TODO: Implement uploadClubChanges
 }

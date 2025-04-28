@@ -9,6 +9,7 @@ nav {
     font-size: var(--font-size-medium);
     width: 100%;
     box-sizing: border-box;
+    gap: 3vw;
 }
 
 #navbar-logo {
@@ -36,6 +37,7 @@ nav {
     margin: 0;
     padding: 0;
 }
+
 
 .anchor-container li a {
     color: var(--color-white);
@@ -74,4 +76,64 @@ nav {
     border-radius: 50%;
     object-fit: cover;
     cursor: pointer;
+}
+
+select {
+    background-color: var(--color-black);
+    color: var(--color-white);
+    border: 1px solid var(--night-view-green);
+    padding: 0.4em 1em;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: bold;
+    appearance: none; /* Hide default arrow */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    align-items: center;
+}
+
+select:hover {
+    background-color: var(--night-view-purple);
+    color: var(--color-white);
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--color-white);
+    box-shadow: 0 0 0 2px var(--night-view-green);
+}
+
+option {
+    background-color: var(--color-black);
+    color: var(--color-white);
+    font-weight: bold;
+}
+
+
+/* Chrome and Edge (WebKit-based) */
+select::-webkit-scrollbar {
+    width: 4px;
+}
+
+select::-webkit-scrollbar-thumb {
+    background-color: var(--night-view-green);
+    border-radius: 10px;
+}
+
+select::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+option[value="add-new"],
+option[value="add-user"] {
+    color: var(--night-view-green); /* This will color the whole text */
+    font-weight: bold;
+}
+
+.selector-container {
+    display: flex;
+    gap: 2vw;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
 }

@@ -2,9 +2,108 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Club Follower Management</title>
+
+    <link rel="stylesheet" href="../css/reusables/basic.css">
+    <link rel="stylesheet" href="../css/reusables/navbar.css">
+    <link rel="stylesheet" href="../css/reusables/container.css">
+    <link rel="stylesheet" href="../css/reusables/button.css">
+
+    <link rel="stylesheet" href="../css/specifics/user-data.css">
+
+    <script type="module" src="../js/utilities/init.js"></script>
+    <script type="module" src="../js/utilities/navbar.js"></script>
+    <script type="module" src="../js/specifics/user-data.js"></script>
 </head>
 <body>
+<nav-bar></nav-bar>
+
+<!-- Followers Section -->
+<h1>Followers</h1>
+<div class="follower-container">
+
+    <div class="follower-area">
+        <h2 class="nvpurple">All Followers</h2>
+
+        <div class="follower-grid-header">
+            <h5 class="solid-border white">Age</h5>
+            <h5 class="solid-border white">Gender</h5>
+            <h5 class="solid-border white">Nationallity</h5>
+            <h5 class="white">Chosen</h5>
+        </div>
+
+        <div class="follower-grid-all-section">
+            <div id="all-age">
+                <h5 class="solid-border white">All</h5>
+            </div>
+            <div id="all-female">
+                <h5 class="white">All</h5>
+            </div>
+            <div id="all-male">
+                <h5 class="solid-border white">All</h5>
+            </div>
+            <div id="all-danish">
+                <h5 class="white">All</h5>
+            </div>
+            <div id="all-international">
+                <h5 class="solid-border white">All</h5>
+            </div>
+            <h4 class="white">
+                <span class="nvgreen" id="selected-followers-0">0</span>
+                <span class="nvpurple">/ </span>
+                <span class="nvgreen" id="total-followers-0">333</span>
+            </h4>
+        </div>
+
+        <div class="follower-grid-wrapper">
+            <div id="follower-grid" class="follower-grid"></div>
+        </div>
+    </div>
+
+    <div class="notification-area">
+        <h2 class="nvpurple">Notifications</h2>
+        <textarea class="notification-header nvgreen" id="notification-header"
+                  placeholder="Write a header here..."></textarea>
+
+        <textarea class="notification-section nvgreen" id="notification-message"
+                  placeholder="Write your notification here..."></textarea>
+        <div class="selected-group">
+            <h3 class="nvpurple">Selected Followers<span class="nvgreen">: </span>
+                <span class="nvgreen" id="selected-followers-1">0</span>
+                <span class="nvpurple">/ </span><span class="nvgreen" id="total-followers-1">333</span>
+            </h3>
+            <button class="button button-notification" id="send-notification">Send Notification</button>
+                <h3 class="nvpurple">Send Notification At<span class="nvgreen">:</span></h3>
+                <input type="datetime-local" id="notification-scheduled-for">
+<!--            TODO make default time-->
+        </div>
+    </div>
+
+</div>
+
+<!-- Data Section -->
+<h1 style="padding-top: 50px">Data</h1>
+<div class="container data-container">
+    <div class="left-section-data">
+        <h2 class="nvpurple">Peak Hours</h2>
+        <div>
+
+        </div>
+    </div>
+    <div class="middle-section-data">
+        <h2 class="nvpurple">Gender Distribution</h2>
+        <div>
+
+        </div>
+    </div>
+
+    <div class="right-section-data">
+        <h2 class="nvpurple">Average Age</h2>
+        <div>
+
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

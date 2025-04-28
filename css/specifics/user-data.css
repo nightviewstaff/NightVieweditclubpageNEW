@@ -1,0 +1,218 @@
+/* user-data.css */
+.followers-section, .data-section {
+    background-color: #fff;
+    margin-bottom: 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+
+textarea {
+    width: 100%;
+    margin-bottom: 20px;
+    border: 1px solid var(--color-white);
+    border-radius: 4px;
+    resize: vertical;
+    text-align: center;
+    font-weight: bold;
+    font-size: larger;
+}
+
+.selected-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    color: #666;
+}
+
+
+
+.data-section {
+    text-align: center;
+    color: #777;
+}
+
+.left-section-data,
+.middle-section-data,
+.right-section-data {
+    flex: 1;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.follower-grid-wrapper {
+    overflow-y: auto;
+    /*border: 1px solid var(--color-white);*/
+max-height: 450px;
+}
+
+.follower-grid {
+    display: grid;
+    grid-template-columns: 0.5fr 0.25fr 0.25fr 0.5fr 0.5fr 0.5fr;
+}
+
+
+.header-row, .all-row, .grid-row {
+    display: contents;
+}
+
+.grid-cell {
+    position: relative;
+    text-align: center;
+    min-height: 2.5vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.grid-cell:nth-child(1) {
+    border-right: 1px solid var(--color-white);
+}
+
+.grid-cell:nth-child(3) {
+    border-right: 1px solid var(--color-white);
+}
+
+.grid-cell:nth-child(5) {
+    border-right: 1px solid var(--color-white);
+}
+
+.grid-cell:nth-child(2),
+.grid-cell:nth-child(4) {
+    border: none; /* Reset any default */
+}
+
+.grid-cell:nth-child(2)::after,
+.grid-cell:nth-child(4)::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: repeating-linear-gradient(
+            to bottom,
+            var(--color-white),
+            var(--color-white) 10px,
+            transparent 10px,
+            transparent 20px
+    );
+}
+
+.dashed-border {
+    border-width: 0 2px 0 0; /* right only */
+    border-style: solid;
+    border-image: repeating-linear-gradient(
+            to bottom,
+            var(--color-white),
+            var(--color-white) 5px,
+            transparent 10px,
+            transparent 10px
+    ) 1;
+}
+
+
+.gender-filter, .nationality-filter {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.age-filter:hover, .gender-filter:hover, .nationality-filter:hover {
+    background-color: var(--night-view-green);
+    opacity: 0.7;
+}
+
+.count-parens:hover{
+    color: var(--night-view-green); /* or any hover color you want */
+}
+
+.grid-cell.active {
+    background-color: var(--night-view-green);
+}
+
+.follower-grid-header {
+    background-color: var(--night-view-purple);
+    border: 1px solid var(--color-white);
+    font-weight: bold;
+    font-size: large;
+    display: grid;
+    grid-template-columns: 0.5fr 0.5fr 1fr 0.5fr;
+    padding: 0px;
+}
+
+.follower-grid-all-section {
+    border: 1px solid var(--color-white);
+    display: grid;
+    grid-template-columns: 0.5fr 0.25fr 0.25fr 0.5fr 0.5fr 0.5fr;
+}
+
+.follower-grid-all-section div {
+    cursor: pointer;
+}
+
+.follower-grid-all-section div:hover {
+    background-color: var(--night-view-green);
+}
+
+.follower-grid-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+
+.follower-grid-wrapper::-webkit-scrollbar-thumb {
+    background-color: var(--night-view-purple);
+    border-radius: 10px;
+}
+
+.follower-grid-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.solid-border {
+    border-right: 1px solid var(--color-white);
+}
+
+.notification-area {
+    min-height: 620px;
+    max-height: 620px;
+    /*display: flex;*/
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid var(--night-view-green);
+}
+
+.age-filter {
+    cursor: pointer;
+}
+
+.count-cell.highlight {
+    color: var(--night-view-green);
+}
+
+
+.notification-header {
+    width: 90%;
+    height: 50px;
+    max-height: 80px;
+    background-color: var(--color-dark-gray);
+    text-align: center;
+    font-size: x-large;
+}
+
+.notification-section {
+    width: 95%;
+    height: 200px;
+    max-height: 320px;
+    background-color: var(--color-dark-gray);
+    text-align: center;
+}
+
+.follower-area {
+    min-height: 620px;
+    max-height: 620px;
+    border: 1px solid var(--night-view-purple);
+}
+
+.follower-grid-all-section div.active {
+    background-color: var(--night-view-green);
+}
+

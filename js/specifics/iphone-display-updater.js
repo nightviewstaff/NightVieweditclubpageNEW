@@ -1,6 +1,7 @@
 // iphone-display-updater.js
 import {getClubSession} from "../utilities/session.js";
 import { getOfferImageUrl,mainOfferImgUrl } from "./club-overview.js";
+import {toTitleCase} from "../utilities/utility.js";
 
 export async function updateIPhoneDisplay(data) {
     const {
@@ -20,22 +21,34 @@ export async function updateIPhoneDisplay(data) {
     const iphoneContainer = document.querySelector(".iphone-wrapper");
 
     if (iphoneContainer) {
+        const resolvedFont = font ? `"${font}", sans-serif` : "var(--font-primary)";
+
         // Club Name
         const clubName = iphoneContainer.querySelector(".club-name h1");
-        clubName.textContent = displayName || "Club Name";
-        clubName.style.color =
-            primaryColor === "NightView Green" || !primaryColor
-                ? "var(--night-view-green)"
-                : primaryColor;
+        if (clubName) {
+            clubName.textContent = toTitleCase(displayName) || "Club Name";
+            clubName.style.color =
+                primaryColor === "NightView Green" || !primaryColor
+                    ? "var(--night-view-green)"
+                    : primaryColor;
+            clubName.style.fontFamily = resolvedFont;
+        }
 
+        // Club Header
         const clubHeader = iphoneContainer.querySelector(".club-header");
         if (clubHeader) {
             clubHeader.style.backgroundColor =
                 secondaryColor === "NightView Black" || !secondaryColor
                     ? "var(--color-black)"
                     : secondaryColor;
-            clubHeader.style.fontFamily = font || "var(--font-primary)";
+            clubHeader.style.fontFamily = resolvedFont;
         }
+
+        // Other Preview Elements That Should Use the Font
+        const fontTargets = iphoneContainer.querySelectorAll(".age-restriction, .opening-hours, .offer-image h2");
+        fontTargets.forEach(el => {
+            el.style.fontFamily = resolvedFont;
+        });
 
         // Logo
         iphoneContainer.querySelector(".logo-container img").src = logo;
@@ -43,11 +56,11 @@ export async function updateIPhoneDisplay(data) {
         // Type Image
         iphoneContainer.querySelector("#club-type-img").src = type
             ? `../images/clubtype/${type}_icon.png`
-            : "../images/default_type.png";
+            : "../images/clubtype/bar_icon.png";
 
         // Age Restriction
         iphoneContainer.querySelector(".age-restriction").textContent =
-            ageRestriction ? `${ageRestriction}+` : "Unknown age restriction";
+            ageRestriction && ageRestriction > 16 ? `${ageRestriction}+` : "Unknown age restriction";
 
         // Opening Hours
         iphoneContainer.querySelector(".opening-hours").textContent =
@@ -66,15 +79,13 @@ export async function updateIPhoneDisplay(data) {
             offerImage.src = offerUrl;
             offerImage.style.display = "block";
             offerHeader.style.display = "block";
-        } else {
-            offerImage.style.display = "none";
-            offerHeader.style.display = "none";
         }
 
         // Map
         initMap(lat, lon, logo);
     }
 }
+
 
 let leafletMap = null; // This will hold your map instance
 let lastCoords = {lat: null, lon: null};
