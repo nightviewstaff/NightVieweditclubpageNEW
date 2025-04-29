@@ -63,7 +63,7 @@ export {
     firebaseDeleteObject as deleteObject,
     // Auth exports
     firebaseGetAuth as getAuth,
-    firebaseOnAuthStateChanged as onAuthStateChanged
+    firebaseOnAuthStateChanged as onAuthStateChanged,addDoc
 };
 
 /**
@@ -85,15 +85,17 @@ export async function logAllDocuments(collectionName = "club_data") {
  * Uploads a notification document to Firestore.
  * @param {Object} notificationData
  */
-export async function uploadNotification({ header, message, createdBy, clubId, filters, scheduledFor }) {
+
+//TODo Make generic.
+export async function uploadNotification({ collection,header, message, createdBy, clubId, filters, scheduledFor }) {
     try {
-        await addDoc(firestoreCollection(db, "notifications"), {
+        await addDoc(firestoreCollection(db, collection), {
             header,
             message,
-            createdBy,
-            clubId,
+            created_by,
+            club_id,
             filters,
-            scheduledFor,
+            scheduled_for,
             createdAt: serverTimestamp(),
             processed: false
         });

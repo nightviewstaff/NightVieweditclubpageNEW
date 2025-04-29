@@ -82,7 +82,7 @@ export async function updateIPhoneDisplay(data) {
         }
 
         // Map
-        initMap(lat, lon, logo);
+        initMap(lat, lon, logo, type);
     }
 }
 
@@ -90,7 +90,7 @@ export async function updateIPhoneDisplay(data) {
 let leafletMap = null; // This will hold your map instance
 let lastCoords = {lat: null, lon: null};
 
-function initMap(lat, lon, logoUrl) {
+function initMap(lat, lon, logoUrl, type) {
     if (!lat || !lon) return;
 
     // Skip redraw if coordinates are same
@@ -106,7 +106,7 @@ function initMap(lat, lon, logoUrl) {
     }).addTo(leafletMap);
 
     const clubIcon = L.icon({
-        iconUrl: logoUrl || "../images/nightview/logo_text.png",
+        iconUrl: logoUrl || `../../../images/clubtype/${type}_icon.png`,
         iconSize: [40, 40],
         iconAnchor: [20, 40],
         className: "club-marker",

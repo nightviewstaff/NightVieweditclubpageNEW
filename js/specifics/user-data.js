@@ -4,6 +4,7 @@ import {getClubs, getUsersWithId} from '../utilities/global.js';
 import {init} from "../utilities/init.js";
 import {calculateUserAge, getUserGender, getUserNationality} from "../utilities/utility.js";
 import {uploadNotification} from "../api/firebase-api.js";
+import {databaseCollections} from "../utilities/constants";
 
 const genderOptions = ['F', 'M'];
 const nationalityOptions = ['Danish', 'International'];
@@ -586,7 +587,7 @@ document.getElementById('send-notification').addEventListener('click', async () 
 
     // Step 4: Upload to Firestore
     try {
-        await uploadNotification(notificationData);
+        await uploadNotification(databaseCollections.notifications,notificationData);
         console.log('🛠 MOCK upload:', notificationData);
     } catch (err) {
         console.error('❌ Upload failed:', err);

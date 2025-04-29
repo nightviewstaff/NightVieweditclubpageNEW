@@ -169,7 +169,7 @@ class NavBar extends HTMLElement {
         selector.innerHTML = '';
         const addClubOption = document.createElement('option');
         addClubOption.value = 'add-new';
-        addClubOption.textContent = '➕ Add Club';
+        addClubOption.textContent = '➕ Add Location';
         selector.appendChild(addClubOption);
 
         validClubs.sort((a, b) => a.name.localeCompare(b.name));

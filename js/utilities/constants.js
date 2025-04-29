@@ -1,3 +1,10 @@
+const databaseCollections = {
+    notifications: "notifications",
+    newClubs: "club_data_new",
+    clubChanges: "club_data_changes",
+    clubData: "club_data",
+    users: "user_data"
+};
 
 const MESSAGES_DANISH = {
     LOADING: "Henter...",
@@ -67,4 +74,5 @@ export {
     MESSAGES_ENGLISH,
     CLUB_TYPES_ENGLISH,
     CLUB_TYPES_DANISH,
+    databaseCollections
 };

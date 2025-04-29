@@ -35,7 +35,7 @@
         <div class="header-container">
             <div class="header-row">
                 <img src="" id="clubTypeImg" alt="Club Type" class="header-img">
-                <h1 id="clubName" class="header-title">Loading...</h1>
+                <h1 id="clubName" class="header-title">Location Name</h1>
                 <img src="" id="clubLogoImg" alt="Club Logo" class="header-img" style="cursor: pointer">
             </div>
 
@@ -49,11 +49,11 @@
                     <div class="field-grid">
                         <div class="field-item">
                             <label for="clubNameInput">Name</label>
-                            <input type="text" id="clubNameInput" placeholder="Loading..." required minlength="1">
+                            <input type="text" id="clubNameInput" placeholder="Name" required minlength="1">
                         </div>
                         <div class="field-item">
                             <label for="clubDisplayName">App Display Name</label>
-                            <input type="text" id="clubDisplayName" placeholder="Loading..." required minlength="1">
+                            <input type="text" id="clubDisplayName" placeholder="Display Name" required minlength="1">
                         </div>
                         <div class="field-item">
                             <label for="typeOfClubSelect">Type</label>
@@ -79,11 +79,11 @@
                     <div class="field grid field-grid-location">
                         <div class="field-item">
                             <label for="lat">Latitude</label>
-                            <input type="number" step="any" id="lat" placeholder="Loading..." min="-90" max="90">
+                            <input type="number" step="any" id="lat" placeholder="lattitude" min="-90" max="90">
                         </div>
                         <div class="field-item">
                             <label for="lon">Longitude</label>
-                            <input type="number" step="any" id="lon" placeholder="Loading..." min="-180" max="180">
+                            <input type="number" step="any" id="lon" placeholder="longitude" min="-180" max="180">
                         </div>
                         <div id="corners-container" class="field-grid field-grid-corners">
                             <div class="field-item">
@@ -118,23 +118,23 @@
                     <summary>Details</summary>
                     <div class="field-item">
                         <h3 class="day-label">Capacity</h3>
-                        <input type="number" id="maxVisitors" placeholder="Loading..." min="1" max="500">
+                        <input type="number" id="maxVisitors" placeholder="Capacity" min="1" max="500">
                     </div>
                     <div class="field-item">
                         <h3 class="day-label">Entry Price (DKK)</h3>
-                        <input type="number" id="entryPrice" placeholder="Loading..." min="0" step="0.01">
+                        <input type="number" id="entryPrice" placeholder="Price" min="0" step="0.01">
                     </div>
                     <div class="field-item">
                         <h3 class="day-label">Primary Color</h3>
-                        <input type="text" id="primaryColor" placeholder="Loading..."/>
+                        <input type="text" id="primaryColor" placeholder="Prim color"/>
                     </div>
                     <div class="field-item">
                         <h3 class="day-label">Background Color</h3>
-                        <input type="text" id="secondaryColor" placeholder="Loading..."/>
+                        <input type="text" id="secondaryColor" placeholder="Back color"/>
                     </div>
                     <div class="field-item" id="fontFieldItem">
                         <h3 class="day-label">Font</h3>
-                        <select id="font" style="cursor: pointer;" placeholder="Loading..."></select>
+                        <select id="font" style="cursor: pointer;" placeholder="Font"></select>
                     </div>
 
                 </details>
@@ -150,10 +150,10 @@
                             <h3 class="day-label">Monday</h3>
                             <div class="day-details">
                                 <div class="detail-box">
-                                    <input type="text" class="hours" id="monday-hours" readonly placeholder="Loading...">
+                                    <input type="text" class="hours" id="monday-hours" readonly placeholder="Hours Monday">
                                 </div>
                                 <div class="detail-box detail-box-age">
-                                    <input type="text" class="age-limit" id="monday-age" readonly placeholder="Loading...">
+                                    <input type="text" class="age-limit" id="monday-age" readonly placeholder="Age Monday">
                                 </div>
                                 <div class="detail-box detail-box-offer">
                                     <button class="offer-button" id="monday-offer" data-day="monday">No Offer</button>
@@ -165,10 +165,10 @@
                             <h3 class="day-label">Tuesday</h3>
                             <div class="day-details">
                                 <div class="detail-box">
-                                    <input type="text" class="hours" id="tuesday-hours" readonly placeholder="Loading...">
+                                    <input type="text" class="hours" id="tuesday-hours" readonly placeholder="Hours Tuesday">
                                 </div>
                                 <div class="detail-box detail-box-age">
-                                    <input type="text" class="age-limit" id="tuesday-age" readonly placeholder="Loading...">
+                                    <input type="text" class="age-limit" id="tuesday-age" readonly placeholder="Age Tuesday">
                                 </div>
                                 <div class="detail-box detail-box-offer">
                                     <button class="offer-button" id="tuesday-offer" data-day="tuesday">No Offer</button>
@@ -180,10 +180,10 @@
                             <h3 class="day-label">Wednesday</h3>
                             <div class="day-details">
                                 <div class="detail-box">
-                                    <input type="text" class="hours" id="wednesday-hours" readonly placeholder="Loading...">
+                                    <input type="text" class="hours" id="wednesday-hours" readonly placeholder="Hours Wednesday">
                                 </div>
                                 <div class="detail-box detail-box-age">
-                                    <input type="text" class="age-limit" id="wednesday-age" readonly placeholder="Loading...">
+                                    <input type="text" class="age-limit" id="wednesday-age" readonly placeholder="Age Wednesday">
                                 </div>
                                 <div class="detail-box detail-box-offer">
                                     <button class="offer-button" id="wednesday-offer" data-day="wednesday">No Offer</button>
@@ -195,10 +195,10 @@
                             <h3 class="day-label">Thursday</h3>
                             <div class="day-details">
                                 <div class="detail-box">
-                                    <input type="text" class="hours" id="thursday-hours" readonly placeholder="Loading...">
+                                    <input type="text" class="hours" id="thursday-hours" readonly placeholder="Hours Thursday">
                                 </div>
                                 <div class="detail-box detail-box-age">
-                                    <input type="text" class="age-limit" id="thursday-age" readonly placeholder="Loading...">
+                                    <input type="text" class="age-limit" id="thursday-age" readonly placeholder="Age Thursday">
                                 </div>
                                 <div class="detail-box detail-box-offer">
                                     <button class="offer-button" id="thursday-offer" data-day="thursday">No Offer</button>
@@ -240,10 +240,10 @@
                             <h3 class="day-label">Sunday</h3>
                             <div class="day-details">
                                 <div class="detail-box">
-                                    <input type="text" class="hours" id="sunday-hours" readonly placeholder="Loading...">
+                                    <input type="text" class="hours" id="sunday-hours" readonly placeholder="Hours Sunday">
                                 </div>
                                 <div class="detail-box detail-box-age">
-                                    <input type="text" class="age-limit" id="sunday-age" readonly placeholder="Loading...">
+                                    <input type="text" class="age-limit" id="sunday-age" readonly placeholder="Age Sunday">
                                 </div>
                                 <div class="detail-box detail-box-offer">
                                     <button class="offer-button" id="sunday-offer" data-day="sunday">No Offer</button>

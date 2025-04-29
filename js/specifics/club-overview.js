@@ -1,9 +1,19 @@
-import { analytics, collection, db, getDocs, getDownloadURL, getStorage, logEvent, ref } from "../api/firebase-api.js";
-import { CLUB_TYPES_ENGLISH } from "../utilities/constants.js";
-import { getClubs, setClubDataCache } from "../utilities/global.js";
-import { getClubSession, getSession } from "../utilities/session.js";
-import { updateIPhoneDisplay } from "./iphone-display-updater.js";
-import { FontSelector } from "../utilities/fontselector.js";
+import {
+    addDoc,
+    analytics,
+    collection,
+    db,
+    getDocs,
+    getDownloadURL,
+    getStorage,
+    logEvent,
+    ref
+} from "../api/firebase-api.js";
+import {CLUB_TYPES_ENGLISH, databaseCollections} from "../utilities/constants.js";
+import {getClubs, setClubDataCache} from "../utilities/global.js";
+import {getClubSession, getSession} from "../utilities/session.js";
+import {updateIPhoneDisplay} from "./iphone-display-updater.js";
+import {FontSelector} from "../utilities/fontselector.js";
 import {init} from "../utilities/init.js";
 
 export let mainOfferImgUrl;
@@ -55,6 +65,12 @@ function fetchStorageUrl(path, fallbackUrl = "") {
 // Main function to fetch and display club data
 async function loadData(user, selectedClubId) {
     console.log("loadData called with user:", user, "selectedClubId:", selectedClubId);
+    if (selectedClubId === "add-new") {
+        prepareNewClubForm();
+        return;
+    }
+
+
     try {
         let clubs = getClubs();
         if (!clubs) {
@@ -460,7 +476,7 @@ function syncAndUpdatePreview() {
 
     const ageValue = document.getElementById(`${today}-age`).value.replace("+", "");
     const ageRestriction = ageValue ? parseInt(ageValue) : localClubData.age_restriction;
-    localClubData.opening_hours[today].ageRestriction = ageRestriction >= 18 ? ageRestriction : localClubData.age_restriction;
+    localClubData.opening_hours[today].ageRestriction = ageRestriction >= 16 ? ageRestriction : localClubData.age_restriction;
 
     // Update iPhone preview
     updateIPhoneDisplay({
@@ -1067,7 +1083,134 @@ function showChangesPopup() {
 function saveChanges() {
     console.log("Saving changes...", localClubData);
     // Add your actual saving logic here, e.g., updating Firebase TODO
+    const selectedClubId = getClubSession(); // Get the currently selected club ID
+    if (!selectedClubId) {
+        alert("No club selected to save.");
+        return;
+    }
+
+    const changes = getChanges(); // Get list of detected changes
+
+    try {
+        if (selectedClubId === "add-new") {
+            // 🆕 NEW CLUB: Save all localClubData into club_data_new
+            const newClubRef = addDoc(collection(db, databaseCollections.newClubs), localClubData);
+            console.log("New club added to club_data_new with ID:", newClubRef.id);
+            alert("New club submitted for approval!");
+        } else {
+            // 🛠️ EXISTING CLUB: Save only the changes into club_data_changes
+            const changePayload = {
+                clubId: selectedClubId,    // Keep track which club is changed
+                changes: changes,          // All the fields that changed
+                timestamp: new Date(),     // Optional: track when change was made
+                madeBy: getSession().uid,  // Optional: track who made the change
+            };
+            // const changeRef = addDoc(collection(db, "club_data_changes"), changePayload);
+            console.log("Changes saved to club_data_changes with ID:", changeRef.id);
+            alert("Changes submitted for review!");
+        }
+    } catch (error) {
+        console.error("Error saving changes:", error);
+        alert("Failed to save changes. Please try again.");
+    }
 }
+
+function prepareNewClubForm() {
+    openLocationSection();
+    console.log("Preparing new club form...");
+
+    originalDbData = createEmptyClubData();
+    localClubData = createEmptyClubData();
+
+    mainOfferImgUrl = null;
+    localOfferImages = {};
+
+    document.querySelector(".header-title").textContent = "";
+    document.getElementById("clubNameInput").value = "";
+    document.getElementById("clubDisplayName").value = "";
+
+    const typeOfClubSelect = document.getElementById("typeOfClubSelect");
+    if (typeOfClubSelect) {
+        typeOfClubSelect.innerHTML = "";
+        Object.entries(CLUB_TYPES_ENGLISH).forEach(([dbValue, displayLabel]) => {
+            const option = document.createElement("option");
+            option.value = dbValue;
+            option.textContent = displayLabel;
+            typeOfClubSelect.appendChild(option);
+        });
+        typeOfClubSelect.value = "";
+    }
+
+    document.getElementById("lat").value = "";
+    document.getElementById("lon").value = "";
+
+    for (let i = 1; i <= 4; i++) {
+        document.getElementById(`corner${i}-lat`).value = "";
+        document.getElementById(`corner${i}-lon`).value = "";
+    }
+
+    document.getElementById("maxVisitors").value = "";
+    document.getElementById("entryPrice").value = "0";
+    document.getElementById("primaryColor").value = "NightView Green";
+    document.getElementById("secondaryColor").value = "NightView Black";
+
+    const fontSelect = document.getElementById("font");
+    if (fontSelect) {
+        fontSelect.value = "NightView Font";
+        new FontSelector("fontFieldItem", (selectedFont) => {
+            localClubData.font = selectedFont;
+            syncAndUpdatePreview();
+        });
+    }
+
+    const clubLogoImg = document.getElementById("clubLogoImg");
+    if (clubLogoImg) {
+        clubLogoImg.src = "../images/default_logo.png";
+        clubLogoImg.addEventListener("click", () => {
+            showLogoPopup("add-new", clubLogoImg);
+        });
+    }
+
+
+    const clubTypeImg = document.getElementById("clubTypeImg");
+    if (clubTypeImg) {
+        clubTypeImg.src = "../images/default_type.png";
+    }
+
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    days.forEach(day => {
+        document.getElementById(`${day}-hours`).value = "Closed";
+        document.getElementById(`${day}-age`).value = "Not set";
+        const offerButton = document.getElementById(`${day}-offer`);
+        if (offerButton) {
+            offerButton.textContent = "Add Offer";
+            offerButton.classList.remove("has-offer");
+        }
+    });
+
+    setupLivePreviewBindings();
+    bindLeftInputs();
+    syncAndUpdatePreview();
+}
+
+
+function openLocationSection() {
+    const locationDetails = document.querySelector('details summary');
+    if (!locationDetails) return;
+
+    const allDetails = document.querySelectorAll('details');
+    // // allDetails.forEach(d => d.open = false); // Optional: collapse others if you want
+    //
+    // // Find the Location section specifically
+    const summaries = Array.from(document.querySelectorAll('details > summary'));
+    const locationSummary = summaries.find(summary => summary.textContent.trim().toLowerCase() === 'location');
+    if (allDetails) {
+        locationSummary.parentElement.open = true; // Open the details section
+        locationSummary.scrollIntoView({behavior: 'smooth', block: 'start'}); // Scroll nicely
+    }
+}
+
+
 
 // Event listeners
 document.getElementById("saveButton").addEventListener("click", showChangesPopup);
@@ -1101,3 +1244,28 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
+function createEmptyClubData() {
+    return {
+        name: "",
+        displayName: "",
+        type_of_club: "",
+        lat: null,
+        lon: null,
+        corners: [],
+        total_possible_amount_of_visitors: 0,
+        entry_price: 0,
+        primary_color: "NightView Green",
+        secondary_color: "NightView Black",
+        font: "NightView Font",
+        opening_hours: {
+            monday: {},
+            tuesday: {},
+            wednesday: {},
+            thursday: {},
+            friday: {},
+            saturday: {},
+            sunday: {}
+        },
+        logo: "../../../images/logo_text.png"
+    };
+}
