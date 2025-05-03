@@ -1,10 +1,10 @@
-// user-data.js
+// notifications.js
 import {getClubSession, getSession} from "../utilities/session.js";
 import {getClubs, getUsersWithId} from '../utilities/global.js';
 import {init} from "../utilities/init.js";
 import {calculateUserAge, getUserGender, getUserNationality} from "../utilities/utility.js";
 import {uploadNotification} from "../api/firebase-api.js";
-import {databaseCollections} from "../utilities/constants";
+import {databaseCollections} from "../utilities/constants.js";
 
 const genderOptions = ['F', 'M'];
 const nationalityOptions = ['Danish', 'International'];

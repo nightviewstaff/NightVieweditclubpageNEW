@@ -1,5 +1,5 @@
-/* user-data.css */
-.followers-section, .data-section {
+/* notifications.css */
+.followers-section, .chart-data-section {
     background-color: #fff;
     margin-bottom: 40px;
     border-radius: 8px;
@@ -26,19 +26,12 @@ textarea {
 
 
 
-.data-section {
+.chart-data-section {
     text-align: center;
     color: #777;
 }
 
-.left-section-data,
-.middle-section-data,
-.right-section-data {
-    flex: 1;
-    border-radius: 10px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-}
+
 
 .follower-grid-wrapper {
     overflow-y: auto;

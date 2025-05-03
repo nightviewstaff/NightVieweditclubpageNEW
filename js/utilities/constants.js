@@ -1,10 +1,20 @@
+// constants.js
+
+const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
 const databaseCollections = {
     notifications: "notifications",
     newClubs: "club_data_new",
     clubChanges: "club_data_changes",
     clubData: "club_data",
-    users: "user_data"
+    users: "user_data",
 };
+
+const databaseStorage ={
+    clubLogos: "club_logos",
+    clubImages: "club_images",
+    clubOffers: "offers",
+}
 
 const MESSAGES_DANISH = {
     LOADING: "Henter...",
@@ -74,5 +84,5 @@ export {
     MESSAGES_ENGLISH,
     CLUB_TYPES_ENGLISH,
     CLUB_TYPES_DANISH,
-    databaseCollections
+    databaseCollections,databaseStorage, days
 };

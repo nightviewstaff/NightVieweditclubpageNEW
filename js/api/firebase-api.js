@@ -1,28 +1,31 @@
 // firebase-api.js
 
 // Import Firebase modules
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-app.js";
-import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-analytics.js";
+import {initializeApp} from "https://www.gstatic.com/firebasejs/9.6.7/firebase-app.js";
+import {getAnalytics, logEvent} from "https://www.gstatic.com/firebasejs/9.6.7/firebase-analytics.js";
 import {
-    getFirestore,
+    addDoc,
     collection as firestoreCollection,
-    getDocs as firestoreGetDocs,
     doc as firestoreDoc,
     getDoc as firestoreGetDoc,
+    getDocs as firestoreGetDocs,
+    getFirestore,
+    serverTimestamp,
+    setDoc,
     updateDoc as firestoreUpdateDoc,
-    serverTimestamp as firestoreServerTimestamp, addDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore.js";
 import {
-    getStorage as firebaseGetStorage,
-    ref as firebaseRef,
+    deleteObject as firebaseDeleteObject,
     getDownloadURL as firebaseGetDownloadURL,
-    uploadBytes as firebaseUploadBytes,
-    deleteObject as firebaseDeleteObject
+    getStorage,
+    ref,
+    uploadBytes
 } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-storage.js";
 import {
     getAuth as firebaseGetAuth,
     onAuthStateChanged as firebaseOnAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-auth.js";
+import {convertToWebP} from "../utilities/utility.js";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -40,9 +43,12 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 const auth = firebaseGetAuth(app);
+const storage = getStorage(app);
 
 // Export initialized services
 export {
+    storage,
+    setDoc,
     app,
     analytics,
     db,
@@ -54,12 +60,12 @@ export {
     firestoreDoc as doc,
     firestoreGetDoc as getDoc,
     firestoreUpdateDoc as updateDoc,
-    firestoreServerTimestamp as serverTimestamp,
+    serverTimestamp,
     // Storage exports
-    firebaseGetStorage as getStorage,
-    firebaseRef as ref,
+    getStorage,
+    ref,
     firebaseGetDownloadURL as getDownloadURL,
-    firebaseUploadBytes as uploadBytes,
+    uploadBytes,
     firebaseDeleteObject as deleteObject,
     // Auth exports
     firebaseGetAuth as getAuth,
@@ -106,12 +112,48 @@ export async function uploadNotification({ collection,header, message, createdBy
     }
 }
 
-// Placeholder: future uploadNewClub function
-export function uploadNewClub() {
-    // TODO: Implement uploadNewClub
+/**
+ * Uploads an image file to Firebase Storage in a specified directory.
+ * @param {File} file - The image file to upload.
+ * @param {string} path - The destination path inside Firebase Storage (e.g., 'club_logos/filename.webp').
+ * @returns {Promise<string>} - Returns the full storage path on success.
+ */
+export async function uploadImageToFirestore(file, path) {
+    try {
+        // Auto-convert to WebP if not already
+        if (file.type !== "image/webp") {
+            file = await convertToWebP(file);
+            path = path.replace(/\.[^/.]+$/, ".webp");
+        }
+
+        const fileRef = ref(storage, path);
+        await uploadBytes(fileRef, file);
+        console.log(`✅ Image uploaded to: ${path}`);
+        return path;
+    } catch (error) {
+        console.error(`❌ Failed to upload image to ${path}:`, error);
+        throw error;
+    }
 }
 
-// Placeholder: future uploadClubChanges function
-export function uploadClubChanges() {
-    // TODO: Implement uploadClubChanges
+/**
+ * Uploads a document to Firestore with tracking fields.
+ * @param {string} collectionName - The Firestore collection.
+ * @param {string} storagePath - Used as the document ID (e.g., 'club_logos/club.webp').
+ * @param {string} uploadedBy - UID of the uploader.
+ * @param {object} additionalData - Any other data to include in the document.
+ */
+export async function uploadData({collectionName, storagePath, uploadedBy, additionalData = {}}) {
+    const docRef = doc(collection(db, collectionName), storagePath.replaceAll("/", "_"));
+    const payload = {
+        ...additionalData,
+        created_by: uploadedBy,
+        processed: false,
+        created_at: serverTimestamp()
+    };
+    await setDoc(docRef, payload);
+    console.log(`✅ Document saved with metadata: ${storagePath}`);
 }
+
+
+

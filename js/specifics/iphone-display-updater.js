@@ -1,7 +1,6 @@
 // iphone-display-updater.js
 import {getClubSession} from "../utilities/session.js";
 import { getOfferImageUrl,mainOfferImgUrl } from "./club-overview.js";
-import {toTitleCase} from "../utilities/utility.js";
 
 export async function updateIPhoneDisplay(data) {
     const {
@@ -26,7 +25,7 @@ export async function updateIPhoneDisplay(data) {
         // Club Name
         const clubName = iphoneContainer.querySelector(".club-name h1");
         if (clubName) {
-            clubName.textContent = toTitleCase(displayName) || "Club Name";
+            clubName.textContent = displayName || "Club Name";
             clubName.style.color =
                 primaryColor === "NightView Green" || !primaryColor
                     ? "var(--night-view-green)"
@@ -91,27 +90,39 @@ let leafletMap = null; // This will hold your map instance
 let lastCoords = {lat: null, lon: null};
 
 function initMap(lat, lon, logoUrl, type) {
-    if (!lat || !lon) return;
+    const isAddClub = getClubSession() === "add-new";
 
-    // Skip redraw if coordinates are same
+    // If adding a new club and no coords provided, use Denmark center
+    if (isAddClub && (!lat || !lon)) {
+        lat = 56.2639;
+        lon = 9.5018;
+    }
+
+    // Skip redraw if coordinates haven't changed
     if (leafletMap && lastCoords.lat === lat && lastCoords.lon === lon) return;
 
-    lastCoords = {lat, lon};
+    lastCoords = { lat, lon };
 
     if (leafletMap) leafletMap.remove();
 
-    leafletMap = L.map("map").setView([lat, lon], 15);
+    leafletMap = L.map("map").setView([lat, lon], isAddClub ? 6 : 15); // 6 for full Denmark view
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
     }).addTo(leafletMap);
 
-    const clubIcon = L.icon({
-        iconUrl: logoUrl || `../../../images/clubtype/${type}_icon.png`,
-        iconSize: [40, 40],
-        iconAnchor: [20, 40],
-        className: "club-marker",
-    });
+    // TODO make marker typeOfClubImage if no logo.
+    if (lat && lon && !isNaN(lat) && !isNaN(lon) && logoUrl) {
+        const clubIcon = L.icon({
+            iconUrl: logoUrl,
+            iconSize: [40, 40],
+            iconAnchor: [20, 40],
+            className: "club-marker",
+        });
 
-    L.marker([lat, lon], {icon: clubIcon}).addTo(leafletMap);
+        L.marker([lat, lon], { icon: clubIcon }).addTo(leafletMap);
+    }
+
 }
+
+
 

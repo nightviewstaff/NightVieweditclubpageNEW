@@ -32,7 +32,7 @@
     --font-size-small: 0.9rem;
     --default-line-height: 1.1;
 
-    --normal-border-radius: 5px;
+    --normal-border-radius: 10px;
 
     --space-small: 8px;
     --space-medium: 16px;
@@ -65,7 +65,6 @@ body {
     margin: var(--space-small);
     padding: var(--space-small);
     line-height: var(--default-line-height);
-
 }
 
 /* Headings */
@@ -111,10 +110,6 @@ textarea::placeholder{
     color: var(--night-view-purple);
 }
 
-/* Responsive Adjustments TODO */
-/*@media (max-width: 600px) {*/
-/**/
-/*}*/
 .nvgreen {
     color: var(--night-view-green);
 }
@@ -122,3 +117,12 @@ textarea::placeholder{
 .white {
     color: var(--color-white);
 }
+
+.input {
+    background-color: var(--color-black);
+}
+
+/* Responsive Adjustments TODO */
+/*@media (max-width: 600px) {*/
+/**/
+/*}*/

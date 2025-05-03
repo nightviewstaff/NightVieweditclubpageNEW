@@ -8,10 +8,16 @@
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: var(--font-size-small);
-    color: var(--color-white);
+    font-size: var(--font-size-medium);
+    color: var(--night-view-green);
     text-align: center;
     transition: all 0.3s ease;
+    font-weight: bold;
+}
+
+.button:hover {
+    color: var(--color-white);
+    background-color: var(--night-view-green);
 }
 
 .login-btn {
@@ -29,11 +35,6 @@
     text-align: center;
 }
 
-.login-btn:hover {
-    background-color: var(--night-view-green);
-    color: var(--color-white);
-}
-
 .offer-button {
     background: none;
     border: none;
@@ -45,25 +46,21 @@
     font-weight: bold;
 }
 
-.offer-button:hover {
-    color: #0056b3; /* Darker blue on hover, adjust as needed */
-}
-
 .offer-button.has-offer {
-    color: var(--night-view-purple); /* Green color for "Offer Available", adjust as needed */
+    color: var(--night-view-purple);
 }
 
-.button-delete {
+.button-reset {
+    color: var(--color-red);
+    background-color: var(--color-white);
+}
+
+.button-reset:hover {
     background-color: var(--color-red);
-}
-
-.button-success {
-    background-color: var(--night-view-green);
 }
 
 .button-disabled {
     background-color: var(--color-dark-gray);
-    /*background-color: var(--color-red);*/
     cursor: not-allowed;
     opacity: 0.8;
 }
@@ -78,10 +75,6 @@
     cursor: pointer;
     border-radius: 4px;
 }
-.see-more-btn:hover {
-    background-color: #444;
-}
-
 
 .button-notification {
     width: 95%;
@@ -91,10 +84,9 @@
     font-weight: bold;
 }
 
-button:hover {
-    background-color: var(--night-view-green);
-    color: var(--color-white);
-    /*border 10px solid var(--night-view-purple);*/
+.button-add-image{
+
+    /*max-width: 160px;*/
 }
 
 button-disabled:hover {

@@ -48,7 +48,8 @@ class NavBar extends HTMLElement {
             </div>
             ${!isLoginPage ? `
             <ul class="anchor-container">
-                <li><a href="/NightVieweditclubpage/html/club-overview.html">Club Data</a></li>
+                <li><a href="/NightVieweditclubpage/html/club-overview.html">Location Data</a></li>
+                <li><a href="/NightVieweditclubpage/html/notifications.html">Notifications</a></li>
                 <li><a href="/NightVieweditclubpage/html/user-data.html">User Data</a></li>
                 <li class="admin-link" style="display:none;"><a href="/NightVieweditclubpage/html/admin-page.html">Admin</a></li>
             </ul>

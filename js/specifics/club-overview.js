@@ -1,20 +1,24 @@
 import {
-    addDoc,
     analytics,
     collection,
     db,
+    doc,
     getDocs,
     getDownloadURL,
-    getStorage,
     logEvent,
-    ref
+    ref,
+    serverTimestamp,
+    setDoc,
+    storage,
+    uploadImageToFirestore
 } from "../api/firebase-api.js";
-import {CLUB_TYPES_ENGLISH, databaseCollections} from "../utilities/constants.js";
+import {CLUB_TYPES_ENGLISH, databaseCollections, databaseStorage, days} from "../utilities/constants.js";
 import {getClubs, setClubDataCache} from "../utilities/global.js";
 import {getClubSession, getSession} from "../utilities/session.js";
 import {updateIPhoneDisplay} from "./iphone-display-updater.js";
 import {FontSelector} from "../utilities/fontselector.js";
 import {init} from "../utilities/init.js";
+import {convertToWebP, getTodayKey, toTitleCase} from "../utilities/utility.js";
 
 export let mainOfferImgUrl;
 let localClubData; // Local copy of the specific club’s data, initialized later
@@ -23,6 +27,9 @@ let localOfferImages = {};
 let originalDbData;
 let originalLogoUrl;
 let originalMainOfferImgUrl;
+let pendingLogoBlob = null;
+let pendingLogoFilename = null;
+
 
 // DOMContentLoaded event listener for initial setup
 document.addEventListener("DOMContentLoaded", async () => {
@@ -49,7 +56,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Log page view event for analytics
 logEvent(analytics, "page_view");
-const storage = getStorage();
 
 // Utility function to fetch a storage URL with a fallback
 function fetchStorageUrl(path, fallbackUrl = "") {
@@ -69,7 +75,6 @@ async function loadData(user, selectedClubId) {
         prepareNewClubForm();
         return;
     }
-
 
     try {
         let clubs = getClubs();
@@ -138,9 +143,13 @@ async function loadData(user, selectedClubId) {
 
         const clubLogoImg = document.getElementById("clubLogoImg");
         if (clubLogoImg) {
-            clubLogoImg.src = clubData.logo;
+            clubLogoImg.src = clubData.logo || ""; // Set to empty string if no logo
             clubLogoImg.addEventListener("click", () => {
-                showLogoPopup(selectedClubId, clubLogoImg);
+                if (!clubData.logo || isDefaultLogo(clubLogoImg.src)) {
+                    uploadNewLogo(selectedClubId, clubLogoImg);
+                } else {
+                    showLogoPopup(selectedClubId, clubLogoImg);
+                }
             });
         }
 
@@ -241,16 +250,61 @@ async function loadData(user, selectedClubId) {
             if (offerButton) {
                 offerButton.textContent = hasSpecificOffer ? "Specific Offer" : hasMainOffer ? "Main Offer" : "Add Offer";
                 offerButton.classList.toggle("has-offer", hasSpecificOffer || hasMainOffer);
-                offerButton.addEventListener("click", () => handleOfferAction(day, selectedClubId, offerButton));
+                // Remove existing listener to prevent duplicates
+                offerButton.removeEventListener("click", offerButton._clickHandler);
+                offerButton._clickHandler = () => handleOfferAction(day, selectedClubId, offerButton);
+                offerButton.addEventListener("click", offerButton._clickHandler);
             }
         });
     } catch (error) {
         console.error("Error loading club data:", error);
         alert("An error occurred while loading data.");
     }
+
+
+    // Add event listener for "Add Image" button
+    //TODO Needs to be able to
+    const addImageBtn = document.getElementById("addImageBtn");
+    if (addImageBtn) {
+        addImageBtn.addEventListener("click", () => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+            input.click();
+
+            input.onchange = async () => {
+                const file = input.files[0];
+                if (!file) return;
+
+                const imageName = prompt("Write the name of the beverage.", file.name.replace(/\.[^/.]+$/, ""));
+                if (!imageName) return;
+
+                const tempUrl = URL.createObjectURL(file);
+
+                const menuImage = {
+                    file: file,
+                    previewUrl: tempUrl,
+                    name: imageName // ✅ store name
+                };
+
+                if (!window.menuImages) window.menuImages = [];
+                window.menuImages.push(menuImage);
+                updateImagesSection(getClubSession());
+            };
+
+        });
+    }
+
+    updateImagesSection(selectedClubId);
+
     setupLivePreviewBindings();
     bindLeftInputs();
 }
+
+function isDefaultLogo(src) {
+    return src.includes("default_logo.png") || !src || src.trim() === "";
+}
+
 
 function showLogoPopup(clubId, logoImgElement) {
     const popup = document.createElement("div");
@@ -284,15 +338,16 @@ function showLogoPopup(clubId, logoImgElement) {
     popup.style.zIndex = "1000";
     document.body.appendChild(popup);
 
-    const closePopup = (e) => {
-        if (!popup.contains(e.target)) {
-            popup.remove();
-            document.removeEventListener("click", closePopup);
-        }
-    };
-    setTimeout(() => document.addEventListener("click", closePopup), 0);
-}
+    // const closePopup = (e) => {
+    //     if (!_popup.contains(e.target)) {
+    //         popup.remove();
+    //         document.removeEventListener("click", closePopup);
+    //     }
+    // };
+    // setTimeout(() => document.addEventListener("click", closePopup), 0);
 
+    syncAndUpdatePreview();
+}
 
 function resetData(clubId) {
     // Restore local variables to original state
@@ -319,13 +374,15 @@ function resetData(clubId) {
 
     const clubLogoImg = document.getElementById("clubLogoImg");
     if (clubLogoImg) {
-        clubLogoImg.src = clubData.logo;
-
+        clubLogoImg.src = clubData.logo || ""; // Set to empty string if no logo
         clubLogoImg.addEventListener("click", () => {
-            showLogoPopup(selectedClubId, clubLogoImg);
+            if (!clubData.logo || isDefaultLogo(clubLogoImg.src)) {
+                uploadNewLogo(selectedClubId, clubLogoImg);
+            } else {
+                showLogoPopup(selectedClubId, clubLogoImg);
+            }
         });
     }
-
     const clubTypeImg = document.getElementById("clubTypeImg");
     if (clubTypeImg) {
         clubTypeImg.src = originalDbData.type_of_club
@@ -404,16 +461,43 @@ function resetData(clubId) {
 
         const hasSpecificOffer = !!originalDbData.opening_hours?.[day]?.daily_offer;
         const hasMainOffer = !!mainOfferImgUrl;
-        if (offerButton) {
-            offerButton.textContent = hasSpecificOffer ? "Specific Offer" : hasMainOffer ? "Main Offer" : "Add Offer";
-            offerButton.classList.toggle("has-offer", hasSpecificOffer || hasMainOffer);
-        }
+        days.forEach((day) => {
+            const hoursElement = document.getElementById(`${day}-hours`);
+            const ageElement = document.getElementById(`${day}-age`);
+            const offerButton = document.getElementById(`${day}-offer`);
+
+            const dayHours = originalDbData.opening_hours?.[day];
+            if (hoursElement) {
+                hoursElement.value = dayHours && dayHours.open && dayHours.close
+                    ? `${dayHours.open} - ${dayHours.close}`
+                    : "Closed";
+            }
+
+            const dayAgeRestriction = dayHours?.ageRestriction ?? originalDbData.age_restriction;
+            if (ageElement) {
+                ageElement.value = dayAgeRestriction && dayAgeRestriction >= 18
+                    ? `${dayAgeRestriction}+`
+                    : "Not set";
+            }
+
+            const hasSpecificOffer = !!originalDbData.opening_hours?.[day]?.daily_offer;
+            const hasMainOffer = !!mainOfferImgUrl;
+            if (offerButton) {
+                offerButton.textContent = hasSpecificOffer ? "Specific Offer" : hasMainOffer ? "Main Offer" : "Add Offer";
+                offerButton.classList.toggle("has-offer", hasSpecificOffer || hasMainOffer);
+                // Remove existing listener to prevent duplicates
+                offerButton.removeEventListener("click", offerButton._clickHandler);
+                offerButton._clickHandler = () => handleOfferAction(day, clubId, offerButton);
+                offerButton.addEventListener("click", offerButton._clickHandler);
+            }
+        });
     });
 
+    updateImagesSection(clubId);
     syncAndUpdatePreview();
 }
 
-function uploadNewLogo(clubId, logoImgElement, popup) {
+async function uploadNewLogo(clubId, logoImgElement, popup) {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
@@ -424,16 +508,20 @@ function uploadNewLogo(clubId, logoImgElement, popup) {
         if (!file) return;
 
         try {
-            const objectUrl = URL.createObjectURL(file);
-            logoImgElement.src = objectUrl;
-            localClubData.logo = objectUrl;
+            pendingLogoFilename = await getAvailableLogoName(localClubData.name);
+            pendingLogoBlob = await convertToWebP(file);
+
+            const tempUrl = URL.createObjectURL(pendingLogoBlob);
+            logoImgElement.src = tempUrl;
+            localClubData.logo = tempUrl; // ✅ use the preview URL to trigger iPhone update
 
             syncClubDataCache(clubId);
+            updateImagesSection(clubId);
             if (popup) popup.remove();
-            syncAndUpdatePreview();
+            syncAndUpdatePreview(); // ✅ triggers iPhone logo refresh
         } catch (error) {
-            console.error("Logo upload error:", error);
-            alert("Failed to upload new logo.");
+            console.error("❌ Error preparing logo for deferred upload:", error);
+            alert("Failed to prepare logo.");
         }
     };
 }
@@ -455,9 +543,12 @@ function formatOpeningHours(openingHours) {
 function syncAndUpdatePreview() {
     const today = getTodayKey();
 
-    // Sync localClubData with DOM
-    localClubData.displayName = document.getElementById("clubDisplayName").value;
-    localClubData.logo = document.getElementById("clubLogoImg").src;
+    // Sync basic club data with DOM
+    localClubData.name = document.getElementById("clubNameInput").value;
+    const nameValue = document.getElementById("clubNameInput").value.trim();
+    const displayNameValue = document.getElementById("clubDisplayName").value.trim();
+    localClubData.displayName = nameValue === displayNameValue ? null : displayNameValue;
+
     localClubData.type_of_club = document.getElementById("typeOfClubSelect").value;
     localClubData.entry_price = parseFloat(document.getElementById("entryPrice").value || "0");
     localClubData.primary_color = document.getElementById("primaryColor").value;
@@ -466,24 +557,26 @@ function syncAndUpdatePreview() {
     localClubData.lat = parseFloat(document.getElementById("lat").value);
     localClubData.lon = parseFloat(document.getElementById("lon").value);
 
+    // Get today's data from DOM for UI preview only
     const hoursValue = document.getElementById(`${today}-hours`).value;
+    let open, close;
     if (hoursValue === "Closed") {
-        localClubData.opening_hours[today] = { open: "00:00", close: "00:00" };
+        open = "00:00";
+        close = "00:00";
     } else {
-        const [open, close] = hoursValue.split(" - ");
-        localClubData.opening_hours[today] = { ...localClubData.opening_hours[today], open, close };
+        [open, close] = hoursValue.split(" - ");
     }
 
     const ageValue = document.getElementById(`${today}-age`).value.replace("+", "");
     const ageRestriction = ageValue ? parseInt(ageValue) : localClubData.age_restriction;
-    localClubData.opening_hours[today].ageRestriction = ageRestriction >= 16 ? ageRestriction : localClubData.age_restriction;
+    const displayNameToUse = localClubData.displayName || toTitleCase(localClubData.name);
 
-    // Update iPhone preview
+    // Update iPhone preview for today
     updateIPhoneDisplay({
-        displayName: localClubData.displayName,
+        displayName: displayNameToUse,
         logo: localClubData.logo,
         type: localClubData.type_of_club,
-        ageRestriction: localClubData.opening_hours[today].ageRestriction,
+        ageRestriction: ageRestriction >= 16 ? ageRestriction : localClubData.age_restriction,
         entryPrice: localClubData.entry_price,
         primaryColor: localClubData.primary_color,
         secondaryColor: localClubData.secondary_color,
@@ -610,10 +703,6 @@ function bindLeftInputs() {
     }
 }
 
-function getTodayKey() {
-    return new Date().toLocaleDateString("en-US", {weekday: "long"}).toLowerCase();
-}
-
 function showColorPicker(inputElement, onColorSelect) {
     const existingPopup = document.querySelector(".color-picker-popup");
     if (existingPopup) existingPopup.remove();
@@ -669,6 +758,7 @@ function showTimePicker(day, hoursElement, onTimeSelect) {
     popup.appendChild(openLabel);
     popup.appendChild(openInput);
 
+
     const closeLabel = document.createElement("label");
     closeLabel.textContent = "Close Time:";
     const closeInput = document.createElement("input");
@@ -676,6 +766,20 @@ function showTimePicker(day, hoursElement, onTimeSelect) {
     closeInput.value = hoursElement.value.split(" - ")[1] || "";
     popup.appendChild(closeLabel);
     popup.appendChild(closeInput);
+
+
+    // TODO Not workining.
+    const setupAutoColon = (input) => {
+        input.addEventListener("input", () => {
+            if (/^\d{2}$/.test(input.value)) {
+                input.value = `${input.value}:00`;
+                input.setSelectionRange(3, 3); // cursor after colon
+            }
+        });
+    };
+    setupAutoColon(openInput);
+    setupAutoColon(closeInput);
+
 
     const saveButton = document.createElement("button");
     saveButton.textContent = "Save";
@@ -700,7 +804,9 @@ function showTimePicker(day, hoursElement, onTimeSelect) {
     popup.style.top = `${rect.bottom + window.scrollY}px`;
     popup.style.left = `${rect.left + window.scrollX}px`;
     document.body.appendChild(popup);
-    popup.focus();
+    requestAnimationFrame(() => {
+        openInput.focus(); // Focus the open time input field
+    });
 
     const closePopup = (e) => {
         if (!popup.contains(e.target) && e.target !== hoursElement) {
@@ -710,6 +816,7 @@ function showTimePicker(day, hoursElement, onTimeSelect) {
     };
     setTimeout(() => document.addEventListener("click", closePopup), 0);
 }
+
 
 function showAgePicker(day, ageElement, onAgeSelect) {
     const existingPopup = document.querySelector(".age-picker-popup");
@@ -731,7 +838,7 @@ function showAgePicker(day, ageElement, onAgeSelect) {
     ageInput.min = 16;
     ageInput.max = 35;
     const currentAge = parseInt(ageElement.value.replace("+", ""));
-    ageInput.value = ageElement.value === "Not set" || isNaN(currentAge) ? 16 : currentAge;
+    ageInput.value = ageElement.value === "Not set" || isNaN(currentAge) ? "" : currentAge;
     popup.appendChild(ageLabel);
     popup.appendChild(ageInput);
 
@@ -759,7 +866,10 @@ function showAgePicker(day, ageElement, onAgeSelect) {
     popup.style.top = `${rect.bottom + window.scrollY}px`;
     popup.style.left = `${rect.left + window.scrollX}px`;
     document.body.appendChild(popup);
-    popup.focus();
+    requestAnimationFrame(() => {
+        ageInput.focus(); // Focus the numeric age input field
+    });
+
 
     const closePopup = (e) => {
         if (!popup.contains(e.target) && e.target !== ageElement) {
@@ -771,74 +881,15 @@ function showAgePicker(day, ageElement, onAgeSelect) {
 }
 
 function showOfferPopup(day, clubId, offerButton) {
-    const hasSpecificOffer = !!localClubData?.opening_hours?.[day]?.daily_offer;
-    const offerUrlPromise = hasSpecificOffer
-        ? getOfferImageUrl(clubId, day)
-        : Promise.resolve(mainOfferImgUrl);
-
-    const popup = document.createElement("div");
-    popup.className = "offer-popup";
-
-    const header = document.createElement("h3");
-    header.className = "popup-header";
-    header.textContent = `Offer for ${day.charAt(0).toUpperCase() + day.slice(1)}`;
-    popup.appendChild(header);
-
-    const img = document.createElement("img");
-    offerUrlPromise.then((offerUrl) => {
-        img.src = offerUrl || "../images/default_offer.png";
-    });
-    img.alt = `Offer for ${day}`;
-    img.style.maxWidth = "100%";
-    img.style.maxHeight = "80vh";
-    popup.appendChild(img);
-
-    if (hasSpecificOffer) {
-        const deleteButton = document.createElement("button");
-        deleteButton.textContent = "Delete Specific Offer";
-        deleteButton.addEventListener("click", () => {
-            if (confirm(`Are you sure you want to delete the specific offer for ${day}?`)) {
-                delete localClubData.opening_hours[day].daily_offer;
-                delete localOfferImages[day];
-                syncClubDataCache(clubId);
-                offerButton.textContent = mainOfferImgUrl ? "Main Offer" : "Add Offer";
-                offerButton.classList.toggle("has-offer", !!mainOfferImgUrl);
-                if (day === getTodayKey()) syncAndUpdatePreview();
-                popup.remove();
-            }
-        });
-        popup.appendChild(deleteButton);
-    } else {
-        const uploadButton = document.createElement("button");
-        uploadButton.textContent = "Upload Specific Offer";
-        uploadButton.style.backgroundColor = "var(--night-view-green)";
-        uploadButton.addEventListener("click", () => uploadSpecificOffer(day, clubId, offerButton, popup));
-        popup.appendChild(uploadButton);
-    }
-
-    popup.style.position = "fixed";
-    popup.style.top = "50%";
-    popup.style.left = "50%";
-    popup.style.transform = "translate(-50%, -50%)";
-    popup.style.backgroundColor = "white";
-    popup.style.padding = "20px";
-    popup.style.boxShadow = "0 0 10px rgba(0,0,0,0.5)";
-    popup.style.zIndex = "1000";
-    document.body.appendChild(popup);
-
-    const closePopup = (e) => {
-        if (!popup.contains(e.target)) {
-            popup.remove();
-            document.removeEventListener("click", closePopup);
-        }
-    };
-    setTimeout(() => document.addEventListener("click", closePopup), 0);
+    getOfferImageUrl(clubId, day).then(url =>
+        showImagePopup(clubId, day, url || "../images/default_offer.png", offerButton)
+    );
 }
 
 async function handleOfferAction(day, clubId, offerButton) {
     const hasSpecificOffer = !!localClubData?.opening_hours?.[day]?.daily_offer;
     const hasMainOffer = !!mainOfferImgUrl;
-
+    console.log(localClubData);
     if (hasSpecificOffer || hasMainOffer) {
         showOfferPopup(day, clubId, offerButton);
     } else {
@@ -854,22 +905,30 @@ function uploadSpecificOffer(day, clubId, offerButton, popup) {
     input.onchange = async () => {
         const file = input.files[0];
         if (!file) return;
+        const blob = await convertToWebP(file); // ensure you convert to a Blob early
+        const previewUrl = URL.createObjectURL(blob);
 
         offerButton.textContent = "Uploading...";
         offerButton.disabled = true;
 
         try {
             const uploadedFileName = file.name;
-            localOfferImages[day] = URL.createObjectURL(file);
+
+            if (!localClubData.opening_hours[day]) {
+                localClubData.opening_hours[day] = {};
+            }
+
+            localOfferImages[day] = {blob, previewUrl};
             localClubData.opening_hours[day] = {
                 ...(localClubData.opening_hours[day] || {}),
-                daily_offer: uploadedFileName
+                daily_offer: `${day}_offer.webp`
             };
             syncClubDataCache(clubId);
             offerButton.textContent = "Specific Offer";
             offerButton.classList.add("has-offer");
+            updateImagesSection(clubId);
             if (popup) popup.remove();
-            showOfferPopup(day, clubId, offerButton);
+            // showOfferPopup(day, clubId, offerButton);
             if (day === getTodayKey()) syncAndUpdatePreview();
         } catch (error) {
             console.error(`Error processing specific offer for ${day}:`, error);
@@ -887,7 +946,10 @@ export async function getOfferImageUrl(clubId, day) {
     const offerFileName = dayData?.daily_offer ?? null;
     if (offerFileName) {
         if (localOfferImages[day]) return localOfferImages[day];
-        const storagePath = `daily_offers/${offerFileName}`;
+
+        // const storagePath = `daily_offers/${offerFileName}`;
+        const storagePath = `${databaseStorage.clubImages}/${databaseStorage.clubOffers}/${offerFileName}`;
+        //TODO CHANGED PATH
         try {
             return await getDownloadURL(ref(storage, storagePath));
         } catch (error) {
@@ -1007,6 +1069,12 @@ function getChanges() {
 
 // Main function to handle the save button click
 function showChangesPopup() {
+
+    if (getClubSession() === "add-new") {
+        // Save club
+    }
+    // else show actual changes for the club you own
+
     const changes = getChanges();
     if (changes.length === 0) {
         alert("No changes to save.");
@@ -1080,23 +1148,59 @@ function showChangesPopup() {
 
 
 // Placeholder for saving logic
-function saveChanges() {
+async function saveChanges() {
+
+    // const errors = validateClubData();
+    // if (errors.length > 0) {
+    //     alert("Please fix the following issues:\n\n" + errors.join("\n"));
+    //     return;
+
+
+//   localClubData = prepareDataForUpload(...localClubData); //TODO one
+
+// Clean up: Set any useless day object to `null`
+
+
     console.log("Saving changes...", localClubData);
-    // Add your actual saving logic here, e.g., updating Firebase TODO
     const selectedClubId = getClubSession(); // Get the currently selected club ID
     if (!selectedClubId) {
         alert("No club selected to save.");
         return;
     }
 
+    // Format logo
+    localClubData.logo = await getAvailableLogoName(localClubData.name);
+
+    collectAllDaysData();
+    calculateEntryPriceAndAgeAndResetDaily();
     const changes = getChanges(); // Get list of detected changes
 
+    Object.keys(localClubData.opening_hours).forEach((day) => {
+        const hoursField = document.getElementById(`${day}-hours`);
+        const isClosed = hoursField?.value?.trim().toLowerCase() === "closed";
+        if (isClosed) {
+            localClubData.opening_hours[day] = null;
+        }
+    });
+
     try {
+        const clubIdName = localClubData.logo
+            .replace(".webp", "")
+            .replace("_logo", "") // 🔥 This removes "_logo.webp"
+            .replace(/\s+/g, "_");
+
+        let clubIdForUpload = selectedClubId === "add-new" ? clubIdName : selectedClubId;
+
         if (selectedClubId === "add-new") {
             // 🆕 NEW CLUB: Save all localClubData into club_data_new
-            const newClubRef = addDoc(collection(db, databaseCollections.newClubs), localClubData);
-            console.log("New club added to club_data_new with ID:", newClubRef.id);
-            alert("New club submitted for approval!");
+            const customDocRef = doc(db, databaseCollections.newClubs, clubIdName);
+
+            localClubData.created_by = getSession().uid;
+            localClubData.created_at = serverTimestamp();
+            localClubData.processed = false;
+
+            await setDoc(customDocRef, localClubData);
+            console.log("New club added with custom ID:", clubIdName);
         } else {
             // 🛠️ EXISTING CLUB: Save only the changes into club_data_changes
             const changePayload = {
@@ -1105,14 +1209,65 @@ function saveChanges() {
                 timestamp: new Date(),     // Optional: track when change was made
                 madeBy: getSession().uid,  // Optional: track who made the change
             };
-            // const changeRef = addDoc(collection(db, "club_data_changes"), changePayload);
-            console.log("Changes saved to club_data_changes with ID:", changeRef.id);
-            alert("Changes submitted for review!");
+            // console.log("Changes saved to club_data_changes with ID:", changeRef.id);
         }
+
+// Upload deferred logo if needed
+        if (pendingLogoBlob && pendingLogoFilename) {
+            pendingLogoFilename = localClubData.logo;
+
+            const path = `${databaseStorage.clubLogos}/${pendingLogoFilename}`;
+            await uploadImageToFirestore(pendingLogoBlob, path);
+            pendingLogoBlob = null;
+            pendingLogoFilename = null;
+        }
+
+        for (const day of Object.keys(localClubData.opening_hours)) {
+            const dayData = localClubData.opening_hours[day];
+            const offerName = dayData?.daily_offer;
+            const offerImageData = localOfferImages[day];
+
+            if (offerName && offerImageData?.blob) {
+                console.log(`Uploading offer for ${day}:`, offerName, offerImageData.blob);
+                const path = `${databaseStorage.clubImages}/${clubIdForUpload}/${databaseStorage.clubOffers}/${offerName}`;
+                await uploadImageToFirestore(offerImageData.blob, path);
+                console.log(`✅ Uploaded daily offer for ${day}: ${offerName}`);
+            }
+        }
+
+        if (window.menuImages?.length) {
+            for (const img of window.menuImages) {
+                const path = `${databaseStorage.clubImages}/${clubIdForUpload}/${img.name}`;
+                await uploadImageToFirestore(img.file, path);
+                console.log(`✅ Uploaded menu image: ${img.name}`);
+            }
+        }
+
+        alert("New club submitted for approval!");
     } catch (error) {
         console.error("Error saving changes:", error);
         alert("Failed to save changes. Please try again.");
     }
+}
+
+function collectAllDaysData() {
+    days.forEach(day => {
+        const hoursValue = document.getElementById(`${day}-hours`).value;
+        let dayData = localClubData.opening_hours[day] || {};
+
+        if (hoursValue === "Closed") {
+            localClubData.opening_hours[day] = null;
+        } else {
+            const [open, close] = hoursValue.split(" - ");
+            dayData = {...dayData, open, close};
+        }
+
+        const ageValue = document.getElementById(`${day}-age`).value.replace("+", "");
+        const ageRestriction = ageValue ? parseInt(ageValue) : localClubData.age_restriction;
+        dayData.ageRestriction = ageRestriction >= 16 ? ageRestriction : localClubData.age_restriction;
+
+        localClubData.opening_hours[day] = dayData;
+    });
 }
 
 function prepareNewClubForm() {
@@ -1165,19 +1320,15 @@ function prepareNewClubForm() {
 
     const clubLogoImg = document.getElementById("clubLogoImg");
     if (clubLogoImg) {
-        clubLogoImg.src = "../images/default_logo.png";
-        clubLogoImg.addEventListener("click", () => {
-            showLogoPopup("add-new", clubLogoImg);
-        });
+        clubLogoImg.src = "";
+        clubLogoImg.addEventListener("click", () => showLogoPopup("add-new", clubLogoImg));
     }
-
 
     const clubTypeImg = document.getElementById("clubTypeImg");
     if (clubTypeImg) {
         clubTypeImg.src = "../images/default_type.png";
     }
 
-    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
     days.forEach(day => {
         document.getElementById(`${day}-hours`).value = "Closed";
         document.getElementById(`${day}-age`).value = "Not set";
@@ -1185,9 +1336,48 @@ function prepareNewClubForm() {
         if (offerButton) {
             offerButton.textContent = "Add Offer";
             offerButton.classList.remove("has-offer");
+            // Remove existing listener to prevent duplicates
+            offerButton.removeEventListener("click", offerButton._clickHandler);
+            offerButton._clickHandler = () => handleOfferAction(day, "add-new", offerButton);
+            offerButton.addEventListener("click", offerButton._clickHandler);
+        } else {
+            console.warn(`No offer button found for ${day}`);
         }
     });
 
+
+    const addImageBtn = document.getElementById("addImageBtn");
+    if (addImageBtn) {
+        addImageBtn.addEventListener("click", () => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+            input.click();
+
+            input.onchange = async () => {
+                const file = input.files[0];
+                if (!file) return;
+
+                const imageName = prompt("Write the name of the beverage", file.name.replace(/\.[^/.]+$/, ""));
+                if (!imageName) return;
+
+                const tempUrl = URL.createObjectURL(file);
+
+                const menuImage = {
+                    file: file,
+                    previewUrl: tempUrl,
+                    name: imageName // ✅ store name
+                };
+
+                if (!window.menuImages) window.menuImages = [];
+                window.menuImages.push(menuImage);
+                updateImagesSection(getClubSession());
+            };
+
+        });
+    }
+
+    updateImagesSection("add-new");
     setupLivePreviewBindings();
     bindLeftInputs();
     syncAndUpdatePreview();
@@ -1210,10 +1400,395 @@ function openLocationSection() {
     }
 }
 
+async function getAvailableLogoName(clubName) {
+    const sanitizedClubName = clubName.trim().replace(/\s+/g, "_");
+    let index = 0;
+    let newFileName;
+
+    // Fetch existing IDs from both collections
+    const [dataSnap, newDataSnap] = await Promise.all([
+        getDocs(collection(db, databaseCollections.clubData)),
+        getDocs(collection(db, databaseCollections.newClubs))
+    ]);
+    const existingDocIds = [
+        ...dataSnap.docs.map(doc => doc.id),
+        ...newDataSnap.docs.map(doc => doc.id)
+    ];
+
+    // Loop until we find a free ID
+    do {
+        newFileName = `${sanitizedClubName}_${index}_logo.webp`;
+        index++;
+    } while (existingDocIds.includes(newFileName.replace(".webp", "")));
+
+    return newFileName;
+}
+
+async function getAvailableId(clubName) {
+    const sanitizedClubName = clubName.trim().replace(/\s+/g, "_");
+    let index = 0;
+    let newId;
+
+    const [dataSnap, newDataSnap] = await Promise.all([
+        getDocs(collection(db, databaseCollections.clubData)),
+        getDocs(collection(db, databaseCollections.newClubs))
+    ]);
+
+    const existingDocIds = [
+        ...dataSnap.docs.map(doc => doc.id),
+        ...newDataSnap.docs.map(doc => doc.id)
+    ];
+
+    do {
+        newId = `${sanitizedClubName}_${index}`;
+        index++;
+    } while (existingDocIds.includes(newId));
+
+    return newId;
+}
+
+function calculateEntryPriceAndAgeAndResetDaily() {
+    const ageCounts = {};
+    // const priceCounts = {};
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+    // Step 1: Count existing age and price values
+    days.forEach(day => {
+        const dayData = localClubData.opening_hours?.[day];
+        if (!dayData) return;
+
+        if (dayData.ageRestriction != null) {
+            ageCounts[dayData.ageRestriction] = (ageCounts[dayData.ageRestriction] || 0) + 1;
+        }
+
+        // if (dayData.entry_price != null) {
+        //     priceCounts[dayData.entry_price] = (priceCounts[dayData.entry_price] || 0) + 1;
+        // }
+    });
+
+    // Step 2: Determine most common values
+    const mostCommonAgeEntry = Object.entries(ageCounts).sort((a, b) => b[1] - a[1])[0];
+    // const mostCommonPriceEntry = Object.entries(priceCounts).sort((a, b) => b[1] - a[1])[0];
+
+    const mostCommonAge = mostCommonAgeEntry ? parseInt(mostCommonAgeEntry[0]) : 10;
+    // const mostCommonPrice = mostCommonPriceEntry ? parseFloat(mostCommonPriceEntry[0]) : 0;
+
+    localClubData.age_restriction = mostCommonAge;
+    // localClubData.entry_price = mostCommonPrice;
+
+    // Step 3: Nullify matching age/price per day (to reduce redundancy)
+    days.forEach(day => {
+        const dayData = localClubData.opening_hours?.[day];
+        if (!dayData) return;
+
+        if (dayData.ageRestriction === mostCommonAge) {
+            dayData.ageRestriction = null;
+        }
+
+        // if (dayData.entry_price === mostCommonPrice) {
+        dayData.entry_price = null; // TODO. Null for now!
+        // }
+    });
+}
+
+
+function createEmptyClubData() {
+    return {
+        name: "",
+        displayName: null,
+        type_of_club: "",
+        lat: null,
+        lon: null,
+        corners: [],
+        total_possible_amount_of_visitors: 0,
+        entry_price: 0,
+        primary_color: "NightView Green",
+        secondary_color: "NightView Black",
+        font: "NightView Font",
+        opening_hours: {
+            monday: null,
+            tuesday: null,
+            wednesday: null,
+            thursday: null,
+            friday: null,
+            saturday: null,
+            sunday: null
+        },
+        logo: ""
+    };
+}
+
+function validateClubData() {
+    const errors = [];
+
+    // ✅ Required & type-validated fields
+    if (!localClubData.name?.trim()) errors.push("Name is required.");
+    if (!localClubData.type_of_club?.trim()) errors.push("Club type is required.");
+    // if (!localClubData.logo?.trim()) errors.push("Logo is required.");
+    // if (!localClubData.primary_color?.trim()) errors.push("Primary color is required.");
+    // if (!localClubData.secondary_color?.trim()) errors.push("Secondary color is required.");
+    // if (!localClubData.font?.trim()) errors.push("Font must be selected.");
+
+    // ✅ Numbers with range checks
+    if (!(localClubData.total_possible_amount_of_visitors > 0)) errors.push("Capacity must be a number greater than 0.");
+    if (isNaN(localClubData.entry_price) || localClubData.entry_price < 0) errors.push("Entry price must be a non-negative number.");
+    if (isNaN(localClubData.lat) || localClubData.lat < -90 || localClubData.lat > 90) errors.push("Latitude must be between -90 and 90.");
+    if (isNaN(localClubData.lon) || localClubData.lon < -180 || localClubData.lon > 180) errors.push("Longitude must be between -180 and 180.");
+
+    // ✅ Opening hours validation (at least 1 valid day)
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    const hasValidDay = days.some(day => {
+        const hours = localClubData.opening_hours?.[day];
+        return hours && hours.open && hours.close && hours.open !== "00:00" && hours.close !== "00:00";
+    });
+    if (!hasValidDay) errors.push("At least one day must have valid opening hours.");
+
+    return errors;
+}
+
+function updateImagesSection(clubId) {
+    const imageManager = document.getElementById("imageManager");
+    if (!imageManager) return;
+
+    let wrapper = imageManager.querySelector(".image-button-wrapper");
+    if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.className = "image-button-wrapper";
+        imageManager.appendChild(wrapper);
+    }
+
+    // Clear existing buttons except the "Add Image" button
+    wrapper.querySelectorAll("button:not(#addImageBtn)").forEach(btn => btn.remove());
+
+    let addImageBtn = wrapper.querySelector("#addImageBtn");
+    if (!addImageBtn) {
+        addImageBtn = document.createElement("button");
+        addImageBtn.id = "addImageBtn";
+        addImageBtn.className = "button button-add-image";
+        addImageBtn.textContent = "➕ Add Image";
+
+        // ✅ Attach the click event handler here
+        addImageBtn.addEventListener("click", () => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+            input.click();
+
+            input.onchange = async () => {
+                const file = input.files[0];
+                if (!file) return;
+
+                const imageName = prompt("Write the name of the beverage.", file.name.replace(/\.[^/.]+$/, ""));
+                if (!imageName) return;
+
+                const tempUrl = URL.createObjectURL(file);
+
+                const menuImage = {
+                    file: file,
+                    previewUrl: tempUrl,
+                    name: imageName
+                };
+
+                if (!window.menuImages) window.menuImages = [];
+                window.menuImages.push(menuImage);
+                updateImagesSection(clubId); // ✅ Trigger re-render
+            };
+        });
+
+        wrapper.appendChild(addImageBtn);
+    }
+
+
+    // Add Logo button
+    if (localClubData.logo) {
+        const logoButton = document.createElement("button");
+        logoButton.textContent = "Logo";
+        logoButton.className = "button button-image";
+        logoButton.addEventListener("click", () => showLogoPopup(clubId, document.getElementById("clubLogoImg")));
+        wrapper.insertBefore(logoButton, document.getElementById("addImageBtn"));
+    }
+
+    // Add Daily Offer buttons
+    days.forEach(day => {
+        const hasSpecificOffer = !!localClubData?.opening_hours?.[day]?.daily_offer;
+        if (hasSpecificOffer) {
+            const offerButton = document.createElement("button");
+            offerButton.textContent = `${toTitleCase(day)} Offer`;
+            offerButton.className = "button button-image";
+            offerButton.addEventListener("click", () => {
+                getOfferImageUrl(clubId, day).then(url =>
+                    showImagePopup(clubId, day, url || "../images/default_offer.png", offerButton)
+                );
+            });
+            wrapper.insertBefore(offerButton, document.getElementById("addImageBtn"));
+        }
+    });
+
+    // Add Menu Images (Drinks / Menu Photos)
+    if (window.menuImages?.length) {
+        // TODO need to be able to rename these pictures
+        window.menuImages.forEach((imgData, index) => {
+            const menuButton = document.createElement("button");
+            menuButton.className = "button button-image";
+
+            const img = document.createElement("img");
+            img.src = imgData.previewUrl;
+            img.alt = imgData.name;
+            menuButton.appendChild(img);
+
+            const label = document.createElement("span");
+            label.textContent = imgData.name || `Menu Image ${index + 1}`;
+            menuButton.appendChild(label);
+
+            menuButton.addEventListener("click", () => showMenuImagePopup(imgData, index));
+            wrapper.insertBefore(menuButton, addImageBtn);
+        });
+    }
+
+}
+
+function showMenuImagePopup(imgData, index) {
+    const popup = document.createElement("div");
+    popup.className = "offer-popup";
+
+    const header = document.createElement("h3");
+    header.textContent = imgData.name || `Menu Image ${index + 1}`;
+    popup.appendChild(header);
+
+    const img = document.createElement("img");
+    img.src = imgData.previewUrl;
+    img.style.maxWidth = "100%";
+    img.style.maxHeight = "80vh";
+    popup.appendChild(img);
+
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "Delete Image";
+    deleteButton.addEventListener("click", () => {
+        window.menuImages.splice(index, 1); // Remove the image
+        updateImagesSection(getClubSession()); // Redraw section
+        popup.remove();
+    });
+    popup.appendChild(deleteButton);
+
+    popup.style.position = "fixed";
+    popup.style.top = "50%";
+    popup.style.left = "50%";
+    popup.style.transform = "translate(-50%, -50%)";
+    popup.style.backgroundColor = "white";
+    popup.style.padding = "20px";
+    popup.style.boxShadow = "0 0 10px rgba(0,0,0,0.5)";
+    popup.style.zIndex = "1000";
+
+    document.body.appendChild(popup);
+
+    const renameButton = document.createElement("button");
+    renameButton.textContent = "Rename Image";
+    renameButton.style.backgroundColor = "var(--night-view-green)";
+    renameButton.addEventListener("click", () => {
+        const newName = prompt("Enter new name:", imgData.name || `Menu Image ${index + 1}`);
+        if (newName) {
+            imgData.name = newName;
+            updateImagesSection(getClubSession());
+            popup.remove();
+        }
+    });
+    popup.appendChild(renameButton);
+
+
+    const closePopup = (e) => {
+        if (!popup.contains(e.target)) {
+            popup.remove();
+            document.removeEventListener("click", closePopup);
+        }
+    };
+    setTimeout(() => document.addEventListener("click", closePopup), 0);
+}
+
+
+function showImagePopup(clubId, imageType, imageUrl, buttonElement) {
+    const isLogo = imageType === "logo";
+    const day = isLogo ? null : imageType;
+    const popup = document.createElement("div");
+    popup.className = "offer-popup";
+
+    const header = document.createElement("h3");
+    header.className = "popup-header";
+    header.textContent = isLogo ? "Club Logo" : `Offer for ${toTitleCase(day)}`;
+    popup.appendChild(header);
+
+    const img = document.createElement("img");
+    img.src = imageUrl;
+    img.alt = isLogo ? "Club Logo" : `Offer for ${day}`;
+    img.style.maxWidth = "100%";
+    img.style.maxHeight = "80vh";
+    popup.appendChild(img);
+
+    const uploadButton = document.createElement("button");
+    uploadButton.textContent = isLogo ? "Change Logo" : "Change Offer";
+    uploadButton.style.backgroundColor = "var(--night-view-green)";
+    uploadButton.addEventListener("click", () => {
+        if (isLogo) {
+            uploadNewLogo(clubId, document.getElementById("clubLogoImg"), popup);
+        } else {
+            uploadSpecificOffer(day, clubId, document.getElementById(`${day}-offer`), popup);
+        }
+    });
+    popup.appendChild(uploadButton);
+
+    if (!isLogo && localClubData?.opening_hours?.[day]?.daily_offer) {
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete Offer";
+        deleteButton.addEventListener("click", () => {
+            if (confirm(`Are you sure you want to delete the offer for ${day}?`)) {
+                delete localClubData.opening_hours[day].daily_offer;
+                delete localOfferImages[day];
+                syncClubDataCache(clubId);
+                const offerButton = document.getElementById(`${day}-offer`);
+                offerButton.textContent = mainOfferImgUrl ? "Main Offer" : "Add Offer";
+                offerButton.classList.toggle("has-offer", !!mainOfferImgUrl);
+                updateImagesSection(clubId);
+                if (day === getTodayKey()) syncAndUpdatePreview();
+                popup.remove();
+            }
+        });
+        popup.appendChild(deleteButton);
+    }
+
+    popup.style.position = "fixed";
+    popup.style.top = "50%";
+    popup.style.left = "50%";
+    popup.style.transform = "translate(-50%, -50%)";
+    popup.style.backgroundColor = "white";
+    popup.style.padding = "20px";
+    popup.style.boxShadow = "0 0 10px rgba(0,0,0,0.5)";
+    popup.style.zIndex = "1000";
+    document.body.appendChild(popup);
+
+    const closePopup = (e) => {
+        if (!popup.contains(e.target)) {
+            popup.remove();
+            document.removeEventListener("click", closePopup);
+        }
+    };
+    setTimeout(() => document.addEventListener("click", closePopup), 0);
+}
+
+
+
 
 
 // Event listeners
 document.getElementById("saveButton").addEventListener("click", showChangesPopup);
+
+document.addEventListener("change", handleGenericInput);
+document.addEventListener("input", handleGenericInput);
+
+function handleGenericInput(e) {
+    // const isRelevantField = e.target.matches("input, select, textarea");
+    // if (isRelevantField) {
+    syncAndUpdatePreview();
+    // }
+}
 
 window.addEventListener("clubChanged", () => {
     const selectedClubId = getClubSession();
@@ -1244,28 +1819,4 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-function createEmptyClubData() {
-    return {
-        name: "",
-        displayName: "",
-        type_of_club: "",
-        lat: null,
-        lon: null,
-        corners: [],
-        total_possible_amount_of_visitors: 0,
-        entry_price: 0,
-        primary_color: "NightView Green",
-        secondary_color: "NightView Black",
-        font: "NightView Font",
-        opening_hours: {
-            monday: {},
-            tuesday: {},
-            wednesday: {},
-            thursday: {},
-            friday: {},
-            saturday: {},
-            sunday: {}
-        },
-        logo: "../../../images/logo_text.png"
-    };
-}
+

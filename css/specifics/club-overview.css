@@ -57,7 +57,7 @@
 .field-item select,
 .field-item textarea {
     padding: var(--space-small);
-    border: 1px solid #ccc;
+    /*border: 1px solid #ccc;*/
     border-radius: var(--normal-border-radius);
 }
 
@@ -95,7 +95,7 @@
     background-color: var(--color-white);
     color: var(--color-black);
     padding: var(--space-small);
-    border-radius: 5px;
+    border-radius: var(--normal-border-radius);
     text-align: center;
     /*border: var(--night-view-purple) 2px solid;*/
 
@@ -150,35 +150,9 @@
     /*flex: 0.5;*/
 }
 
-.offer-indicator.has-offer {
+.has-offer {
     color: var(--night-view-green);
     font-weight: bold;
-}
-
-.overview-stats {
-    width: 100%;
-    margin-bottom: 1.5rem; /* Adjust this to move the iPhone further down */
-}
-
-.stats-details {
-    display: flex;
-    flex-direction: row; /* Display boxes side by side */
-    justify-content: space-between; /* Spread boxes evenly */
-    gap: var(--space-small);
-    width: 100%;
-}
-
-.stat-box {
-    flex: 1; /* Each box takes equal width */
-    background-color: var(--color-white);
-    color: var(--color-black);
-    padding: var(--space-small);
-    border-radius: 5px;
-    text-align: center;
-}
-
-.stat-value {
-    color: var(--color-black);
 }
 
 .offer-image{

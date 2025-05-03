@@ -2,24 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Club Follower Management</title>
+    <title>Notifications</title>
 
     <link rel="stylesheet" href="../css/reusables/basic.css">
     <link rel="stylesheet" href="../css/reusables/navbar.css">
     <link rel="stylesheet" href="../css/reusables/container.css">
     <link rel="stylesheet" href="../css/reusables/button.css">
 
-    <link rel="stylesheet" href="../css/specifics/user-data.css">
+    <link rel="stylesheet" href="../css/specifics/notifications.css">
 
     <script type="module" src="../js/utilities/init.js"></script>
     <script type="module" src="../js/utilities/navbar.js"></script>
-    <script type="module" src="../js/specifics/user-data.js"></script>
+
+    <script type="module" src="../js/specifics/notifications.js"></script>
 </head>
 <body>
 <nav-bar></nav-bar>
 
 <!-- Followers Section -->
-<h1>Followers</h1>
+<div>
+    <h2>Scheduled Notifications</h2>
+</div>
+<div class="container scheduled-notifications-container">
+<div class="scheduled-notifications"></div>
+</div>
+<div>
+    <h2>Send Notifications</h2>
+</div>
+
 <div class="follower-container">
 
     <div class="follower-area">
@@ -81,29 +91,6 @@
 
 </div>
 
-<!-- Data Section -->
-<h1 style="padding-top: 50px">Data</h1>
-<div class="container data-container">
-    <div class="left-section-data">
-        <h2 class="nvpurple">Peak Hours</h2>
-        <div>
-
-        </div>
-    </div>
-    <div class="middle-section-data">
-        <h2 class="nvpurple">Gender Distribution</h2>
-        <div>
-
-        </div>
-    </div>
-
-    <div class="right-section-data">
-        <h2 class="nvpurple">Average Age</h2>
-        <div>
-
-        </div>
-    </div>
-</div>
 
 </body>
 </html>

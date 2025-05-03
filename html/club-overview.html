@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
-    <title>Club Overview</title>
+    <title>Location Overview</title>
     <link rel="stylesheet" href="../css/reusables/basic.css">
     <link rel="stylesheet" href="../css/reusables/navbar.css">
     <link rel="stylesheet" href="../css/reusables/button.css">
@@ -48,7 +48,7 @@
                     <summary>Basic Info</summary>
                     <div class="field-grid">
                         <div class="field-item">
-                            <label for="clubNameInput">Name</label>
+                            <label for="clubNameInput">Location Name</label>
                             <input type="text" id="clubNameInput" placeholder="Name" required minlength="1">
                         </div>
                         <div class="field-item">
@@ -66,10 +66,10 @@
                 <details>
                     <summary>Images</summary>
                     <div id="imageManager" class="image-scroll-container">
-                        <!-- Dynamic buttons will be injected here -->
-                        <div class="image-button-wrapper">
-                            <button id="addImageBtn" class="offer-button add-offer">➕ Add Image</button>
-                        </div>
+<!--                        &lt;!&ndash; Dynamic buttons will be injected here &ndash;&gt;-->
+<!--                        <div class="image-button-wrapper">-->
+<!--                            <button id="addImageBtn" class="button button-add-image">➕ Add Image</button>-->
+<!--                        </div>-->
                     </div>
                 </details>
 
@@ -255,8 +255,8 @@
                 </details>
 
                 <div class="button-container">
-                    <button id="resetButton" class="button button-delete">Reset</button>
-                    <button id="saveButton" class="button button-success">Save</button>
+                    <button id="resetButton" class="button button-reset">Reset</button>
+                    <button id="saveButton" class="button button-save">Save</button>
                 </div>
             </div>
         </div>
@@ -273,7 +273,7 @@
                     <!-- Top Section -->
                     <div class="top-section">
                         <div class="club-type-img">
-                            <img id="club-type-img" src="" alt="Club Type">
+                            <img id="club-type-img" src="" alt="Type">
                         </div>
                         <div class="chevron-icon">
                             <i class="fas fa-chevron-down"></i>
@@ -292,7 +292,7 @@
                     <div class="logo-section">
                         <div class="logo-favorite">
                             <div class="logo-container open">
-                                <img src="" alt="Club Logo">
+                                <img src="" alt="Logo">
                             </div>
                             <div class="favorite-button">
                                 <i class="far fa-star"></i>
