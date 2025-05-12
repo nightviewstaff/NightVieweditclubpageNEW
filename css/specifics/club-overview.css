@@ -53,11 +53,18 @@
     margin-bottom: 0.4rem;
 }
 
+input,
+select,
+textarea {
+    background-color: var(--color-black);
+    color: var(--color-white); /* Optional: to ensure text is readable */
+}
+
 .field-item input,
 .field-item select,
 .field-item textarea {
     padding: var(--space-small);
-    /*border: 1px solid #ccc;*/
+    border: 1px solid var(--night-view-green);
     border-radius: var(--normal-border-radius);
 }
 
@@ -92,10 +99,9 @@
 
 .detail-box {
     flex: 1;
-    background-color: var(--color-white);
-    color: var(--color-black);
     padding: var(--space-small);
     border-radius: var(--normal-border-radius);
+    border: solid 1px var(--night-view-green);
     text-align: center;
     /*border: var(--night-view-purple) 2px solid;*/
 
@@ -160,4 +166,23 @@
     height: 100%;
     object-fit: cover;
 }
+
+.popup.hidden {
+    display: none;
+}
+
+.popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 1px solid #ccc;
+    z-index: 1000;
+    padding: 20px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+}
+
+
+
 

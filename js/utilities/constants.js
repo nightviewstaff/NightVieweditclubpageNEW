@@ -1,34 +1,54 @@
 // constants.js
 
-const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+export const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+export const actualRoles = ['admin', 'owner', 'staff'];
 
-const databaseCollections = {
+export const swalPositions = {
+    center: 'center',
+    top: 'top',
+    topStart: 'top-start',
+    topEnd: 'top-end',
+    bottom: 'bottom',
+    bottomStart: 'bottom-start',
+    bottomEnd: 'bottom-end'
+};
+
+export const swalTypes = {
+    success: 'success',
+    error: 'error',
+    warning: 'warning',
+    info: 'info'
+};
+
+export const databaseCollections = {
     notifications: "notifications",
     newClubs: "club_data_new",
     clubChanges: "club_data_changes",
     clubData: "club_data",
-    users: "user_data",
+    clubDataBackups: "club_data_backups",
+    userData: "user_data",
+    clubTags: "club_tags",
 };
 
-const databaseStorage ={
+export const databaseStorage ={
     clubLogos: "club_logos",
     clubImages: "club_images",
     clubOffers: "offers",
 }
 
-const MESSAGES_DANISH = {
+export const MESSAGES_DANISH = {
     LOADING: "Henter...",
 
 
 };
 
-const MESSAGES_ENGLISH = {
+export const MESSAGES_ENGLISH = {
     LOADING: "Loading...",
     DISPLAY_NAME: "Display Name",
 
 };
 
-const CLUB_TYPES_DANISH = {
+export const CLUB_TYPES_DANISH = {
     bar: "Bar",
     bar_club: "Bar/Klub",
     beer_bar: "Ølbar",
@@ -44,7 +64,7 @@ const CLUB_TYPES_DANISH = {
     wine_bar: "Vinbar"
 };
 
-const CLUB_TYPES_ENGLISH = {
+export const CLUB_TYPES_ENGLISH = {
     bar: "Bar",
     bar_club: "Bar/Club",
     beer_bar: "Beer Bar",
@@ -78,11 +98,3 @@ export const clubTypeImages = {
 
 
 //TODO TYPE OF CLUBS SMARTER
-
-export {
-    MESSAGES_DANISH,
-    MESSAGES_ENGLISH,
-    CLUB_TYPES_ENGLISH,
-    CLUB_TYPES_DANISH,
-    databaseCollections,databaseStorage, days
-};

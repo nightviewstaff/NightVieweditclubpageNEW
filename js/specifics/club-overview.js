@@ -1,24 +1,30 @@
+//club-overview.js
+
 import {
     analytics,
     collection,
     db,
     doc,
+    GeoPoint,
+    getDoc,
     getDocs,
     getDownloadURL,
     logEvent,
     ref,
+    refreshClubDataInCache,
     serverTimestamp,
     setDoc,
     storage,
     uploadImageToFirestore
 } from "../api/firebase-api.js";
-import {CLUB_TYPES_ENGLISH, databaseCollections, databaseStorage, days} from "../utilities/constants.js";
-import {getClubs, setClubDataCache} from "../utilities/global.js";
-import {getClubSession, getSession} from "../utilities/session.js";
+import {CLUB_TYPES_ENGLISH, databaseCollections, databaseStorage, days, swalTypes} from "../utilities/constants.js";
+import {getAllVisibleLocations, isDataInitialized, setAllVisibleLocations} from "../utilities/global.js";
+import {checkSession, getClubSession, getSession} from "../utilities/session.js";
 import {updateIPhoneDisplay} from "./iphone-display-updater.js";
 import {FontSelector} from "../utilities/fontselector.js";
-import {init} from "../utilities/init.js";
-import {convertToWebP, getTodayKey, toTitleCase} from "../utilities/utility.js";
+import {convertToWebP, getTodayKey, nameFormatter, toTitleCase} from "../utilities/utility.js";
+import {showAlert} from "../utilities/custom-alert.js";
+import {hideLoading, showLoading} from "../utilities/loading-indicator.js";
 
 export let mainOfferImgUrl;
 let localClubData; // Local copy of the specific club’s data, initialized later
@@ -33,24 +39,22 @@ let pendingLogoFilename = null;
 
 // DOMContentLoaded event listener for initial setup
 document.addEventListener("DOMContentLoaded", async () => {
-    await init();
-    const uid = getSession().uid;
-    const role = getSession().role;
-    if (uid && role) {
-        const nav = document.querySelector("nav-bar");
-        if (nav && typeof nav.setUser === "function") {
-            nav.setUser({ uid }, role);
-        }
-        // Wait for cache initialization if not ready
-        if (!getClubs()) {
-            await new Promise(resolve => window.addEventListener('dataInitialized', resolve, { once: true }));
-        }
-        const storedClubId = getClubSession();
-        if (storedClubId) {
-            loadData({ uid, role }, storedClubId);
-        }
-    } else {
+    if (!checkSession()) {
         window.location.href = "/NightVieweditclubpage/html/login.html";
+        return;
+    }
+
+    const initialize = async () => {
+        const clubId = getClubSession();
+        if (clubId) {
+            await loadData(clubId);
+        }
+    };
+
+    if (isDataInitialized()) {
+        initialize();
+    } else {
+        window.addEventListener('dataInitialized', initialize, {once: true});
     }
 });
 
@@ -69,53 +73,52 @@ function fetchStorageUrl(path, fallbackUrl = "") {
 }
 
 // Main function to fetch and display club data
-async function loadData(user, selectedClubId) {
-    console.log("loadData called with user:", user, "selectedClubId:", selectedClubId);
+async function loadData(selectedClubId, updateNeeded = false) {
+    console.log("selectedClubId: ", selectedClubId);
     if (selectedClubId === "add-new") {
         prepareNewClubForm();
         return;
     }
 
-    try {
-        let clubs = getClubs();
+    try { // TODO fix up. Check logic is otherwhere
+        let clubs = getAllVisibleLocations();
         if (!clubs) {
             // Fallback to direct fetch if cache isn't initialized (startup only)
-            const querySnapshot = await getDocs(collection(db, "club_data"));
+            const querySnapshot = await getDocs(collection(db, databaseCollections.clubData));
             clubs = querySnapshot.docs.map(docSnap => ({
                 id: docSnap.id,
                 ...docSnap.data(),
             }));
-            setClubDataCache(clubs); // Only called here at startup
+            //TODO
+            setAllVisibleLocations(clubs); // Only called here at startup
             console.log("Fetched fresh clubDataCache:", clubs);
+        } else if (updateNeeded) {
+            await refreshClubDataInCache(selectedClubId);
+            clubs = getAllVisibleLocations();
+            console.log(`Updated and refreshed cache for club ID: ${selectedClubId}`);
         } else {
             console.log("Using cached clubData:", clubs);
         }
 
-        const allowedClubs = clubs.filter(club => {
-            if (user.role === "admin") return true;
-            if (user.role === "owner" && Array.isArray(club.owners) && club.owners.includes(user.uid))
-                return true;
-            if (user.role === "staff") return true;
-
-            return false;
-        });
-
-        if (allowedClubs.length === 0) {
-            console.log("No clubs accessible for this user.");
-            alert("You do not have permission to view any clubs.");
-            return;
-        }
-
-        const club = allowedClubs.find(club => club.id === selectedClubId);
+        const club = getAllVisibleLocations().find(club => club.id === selectedClubId);
         if (!club) {
             console.log(`Club with ID ${selectedClubId} not found or not authorized.`);
-            alert("You do not have permission to view this club or it doesn’t exist.");
+            showAlert({
+                title: 'Access Denied',
+                text: 'You do not have permission to view this Location.',
+                icon: swalTypes.error
+            });
             return;
         }
 
         // Initialize localClubData as a deep copy of the specific club
-        localClubData = { ...club, opening_hours: { ...(club.opening_hours || {}) } };
-
+        const logoUrl = await fetchStorageUrl(`club_logos/${club.logo}`, "../images/default_logo.png");
+        localClubData = {
+            ...club,
+            logo: logoUrl,
+            opening_hours: {...(club.opening_hours || {})},
+            tags: Array.isArray(club.tags) ? club.tags.map(String) : [] // Ensure tags is an array of strings
+        };
         mainOfferImgUrl = club.main_offer_img
             ? await fetchStorageUrl(`main_offers/${club.main_offer_img}`, null)
             : null;
@@ -123,7 +126,7 @@ async function loadData(user, selectedClubId) {
         // Populate DOM directly
         const clubData = {
             name: club.name || "Unknown Club",
-            logo: await fetchStorageUrl(`club_logos/${club.logo}`, "../images/default_logo.png"),
+            logo: logoUrl, // Use the same URL here for consistency
             ageRestriction: club.age_restriction && club.age_restriction >= 16
                 ? `${club.age_restriction}+`
                 : "Unknown age restriction",
@@ -186,12 +189,30 @@ async function loadData(user, selectedClubId) {
         const lon = document.getElementById("lon");
         if (lon) lon.value = club.lon ?? "";
 
-        if (Array.isArray(club.corners)) {
-            club.corners.forEach((corner, index) => {
+// Process corners into GeoPoint objects
+        localClubData.corners = Array.isArray(club.corners)
+            ? club.corners.map(corner => {
+                if (corner instanceof GeoPoint) {
+                    return corner;
+                } else if (Array.isArray(corner)) {
+                    return new GeoPoint(corner[0], corner[1]);
+                } else if (corner && typeof corner === 'object' && '_lat' in corner && '_long' in corner) {
+                    return new GeoPoint(corner._lat, corner._long);
+                } else if (corner && typeof corner === 'object' && 'latitude' in corner && 'longitude' in corner) {
+                    // Handle the case where corner has latitude and longitude properties
+                    return new GeoPoint(corner.latitude, corner.longitude);
+                }
+                return null;
+            }).filter(c => c !== null && c.latitude != null && c.longitude != null)
+            : [];
+
+// Populate the corner inputs
+        if (localClubData.corners.length > 0) {
+            localClubData.corners.forEach((corner, index) => {
                 const latInput = document.getElementById(`corner${index + 1}-lat`);
                 const lonInput = document.getElementById(`corner${index + 1}-lon`);
-                if (latInput) latInput.value = corner._lat ?? "";
-                if (lonInput) lonInput.value = corner._long ?? "";
+                if (latInput) latInput.value = corner.latitude ?? "";
+                if (lonInput) lonInput.value = corner.longitude ?? "";
             });
         } else {
             for (let i = 1; i <= 4; i++) {
@@ -201,7 +222,6 @@ async function loadData(user, selectedClubId) {
                 if (lonInput) lonInput.value = "";
             }
         }
-
         // Details Section
         const maxVisitors = document.getElementById("maxVisitors");
         if (maxVisitors) maxVisitors.value = club.total_possible_amount_of_visitors ?? "";
@@ -258,9 +278,12 @@ async function loadData(user, selectedClubId) {
         });
     } catch (error) {
         console.error("Error loading club data:", error);
-        alert("An error occurred while loading data.");
+        showAlert({
+            title: 'Load Error',
+            text: 'An error occurred while loading data.',
+            icon: swalTypes.error
+        });
     }
-
 
     // Add event listener for "Add Image" button
     //TODO Needs to be able to
@@ -294,12 +317,131 @@ async function loadData(user, selectedClubId) {
 
         });
     }
-
-    updateImagesSection(selectedClubId);
-
-    setupLivePreviewBindings();
-    bindLeftInputs();
+    try {
+        // Existing code up to the end of the try block
+        updateImagesSection(selectedClubId);
+        setupLivePreviewBindings();
+        bindLeftInputs();
+        await setupTagSelection(); // Add await to ensure it completes
+    } catch (error) {
+        console.error("Error loading club data:", error);
+        showAlert({
+            title: 'Load Error',
+            text: 'An error occurred while loading data.',
+            icon: swalTypes.error
+        });
+    }
 }
+
+async function setupTagSelection() {
+    const tagSelector = document.getElementById("openTagSelector");
+    const selectedTagsContainer = document.getElementById("selectedTags");
+
+    if (!tagSelector || !selectedTagsContainer || !localClubData) {
+        console.error("Tag selector, selected container or localClubData not available");
+        return;
+    }
+
+    if (!Array.isArray(localClubData.tags)) {
+        localClubData.tags = [];
+    }
+
+    let availableTags = [];
+    try {
+        const tagsSnapshot = await getDocs(collection(db, databaseCollections.clubTags));
+        availableTags = tagsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error("Error loading tags", error);
+        showAlert({
+            title: 'Error',
+            text: 'Could not load tags',
+            icon: swalTypes.error
+        });
+        return;
+    }
+
+    function renderSelectedTags() {
+        selectedTagsContainer.innerHTML = "";
+        localClubData.tags.forEach(tagName => {
+            const tag = availableTags.find(t => t.name === tagName);
+            const tagEl = document.createElement("span");
+            tagEl.className = "tag";
+            tagEl.textContent = tag ? `${tag.emoji} ${toTitleCase(tagName)}` : toTitleCase(tagName);
+            selectedTagsContainer.appendChild(tagEl);
+        });
+    }
+
+    renderSelectedTags();
+
+    tagSelector.addEventListener("click", (e) => {
+        e.preventDefault();
+
+        const existingPopup = document.querySelector(".tag-popup");
+        if (existingPopup) {
+            existingPopup.remove(); // Only allow one popup
+        }
+
+        const popup = document.createElement("div");
+        popup.className = "tag-popup";
+
+        const rect = tagSelector.getBoundingClientRect();
+        popup.style.top = `${rect.top + window.scrollY}px`;
+        popup.style.left = `${rect.right + 10}px`;
+
+        function buildPopupContent() {
+            popup.innerHTML = "";
+
+            const sortedTags = [...availableTags].sort((a, b) => {
+                const aSelected = localClubData.tags.includes(a.name);
+                const bSelected = localClubData.tags.includes(b.name);
+
+                if (aSelected && !bSelected) return -1;
+                if (!aSelected && bSelected) return 1;
+
+                // Both selected or both not selected – sort alphabetically
+                return a.name.localeCompare(b.name);
+            });
+
+
+            sortedTags.forEach(tag => {
+                const tagEl = document.createElement("div");
+                tagEl.className = "tag-option";
+                tagEl.textContent = `${tag.emoji} ${toTitleCase(tag.name)}`;
+                if (localClubData.tags.includes(tag.name)) {
+                    tagEl.classList.add("selected");
+                }
+                tagEl.addEventListener("click", (e) => {
+                    e.stopPropagation(); // prevent closing popup
+                    const index = localClubData.tags.indexOf(tag.name);
+                    if (index > -1) {
+                        localClubData.tags.splice(index, 1);
+                    } else {
+                        localClubData.tags.push(tag.name);
+                    }
+                    renderSelectedTags();
+                    syncAndUpdatePreview();
+                    buildPopupContent(); // refresh sort
+                });
+                popup.appendChild(tagEl);
+            });
+        }
+
+        document.body.appendChild(popup);
+        buildPopupContent();
+
+        const closePopup = (e) => {
+            if (!popup.contains(e.target) && e.target !== tagSelector) {
+                popup.remove();
+                document.removeEventListener("click", closePopup);
+            }
+        };
+        setTimeout(() => document.addEventListener("click", closePopup), 0);
+    });
+}
+
 
 function isDefaultLogo(src) {
     return src.includes("default_logo.png") || !src || src.trim() === "";
@@ -350,151 +492,176 @@ function showLogoPopup(clubId, logoImgElement) {
 }
 
 function resetData(clubId) {
-    // Restore local variables to original state
-    localClubData = { ...originalDbData, opening_hours: { ...(originalDbData.opening_hours || {}) } };
-    mainOfferImgUrl = originalMainOfferImgUrl;
-    localOfferImages = {};
-
-    // Reconstruct clubData with original values
-    const clubData = {
-        name: originalDbData.name || "Unknown Club",
-        logo: originalLogoUrl,
-        ageRestriction: originalDbData.age_restriction && originalDbData.age_restriction >= 16
-            ? `${originalDbData.age_restriction}+`
-            : "Unknown age restriction",
-        openingHours: formatOpeningHours(originalDbData.opening_hours),
-        distance: "300 m",
-        isFavorite: true,
-        typeOfClub: originalDbData.type_of_club || "unknown",
-    };
-
-    // Populate DOM (similar to loadData, but using stored data)
-    const clubNameH1 = document.querySelector(".header-title");
-    if (clubNameH1) clubNameH1.textContent = clubData.name;
-
-    const clubLogoImg = document.getElementById("clubLogoImg");
-    if (clubLogoImg) {
-        clubLogoImg.src = clubData.logo || ""; // Set to empty string if no logo
-        clubLogoImg.addEventListener("click", () => {
-            if (!clubData.logo || isDefaultLogo(clubLogoImg.src)) {
-                uploadNewLogo(selectedClubId, clubLogoImg);
-            } else {
-                showLogoPopup(selectedClubId, clubLogoImg);
-            }
-        });
-    }
-    const clubTypeImg = document.getElementById("clubTypeImg");
-    if (clubTypeImg) {
-        clubTypeImg.src = originalDbData.type_of_club
-            ? `../images/clubtype/${originalDbData.type_of_club}_icon.png`
-            : "../images/clubtype/bar_icon.png";
-    }
-
-    const clubNameInput = document.getElementById("clubNameInput");
-    if (clubNameInput) clubNameInput.value = clubData.name;
-
-    const clubDisplayName = document.getElementById("clubDisplayName");
-    if (clubDisplayName) clubDisplayName.value = originalDbData.displayName || clubData.name;
-
-    const typeOfClubSelect = document.getElementById("typeOfClubSelect");
-    if (typeOfClubSelect) {
-        typeOfClubSelect.value = originalDbData.type_of_club || "";
-    }
-
-    const lat = document.getElementById("lat");
-    if (lat) lat.value = originalDbData.lat ?? "";
-
-    const lon = document.getElementById("lon");
-    if (lon) lon.value = originalDbData.lon ?? "";
-
-    if (Array.isArray(originalDbData.corners)) {
-        originalDbData.corners.forEach((corner, index) => {
-            const latInput = document.getElementById(`corner${index + 1}-lat`);
-            const lonInput = document.getElementById(`corner${index + 1}-lon`);
-            if (latInput) latInput.value = corner._lat ?? "";
-            if (lonInput) lonInput.value = corner._long ?? "";
-        });
-    } else {
-        for (let i = 1; i <= 4; i++) {
-            const latInput = document.getElementById(`corner${i}-lat`);
-            const lonInput = document.getElementById(`corner${i}-lon`);
-            if (latInput) latInput.value = "";
-            if (lonInput) lonInput.value = "";
-        }
-    }
-
-    const maxVisitors = document.getElementById("maxVisitors");
-    if (maxVisitors) maxVisitors.value = originalDbData.total_possible_amount_of_visitors ?? "";
-
-    const entryPrice = document.getElementById("entryPrice");
-    if (entryPrice) entryPrice.value = originalDbData.entry_price ?? "0";
-
-    const primaryColor = document.getElementById("primaryColor");
-    if (primaryColor) primaryColor.value = originalDbData.primary_color ?? "NightView Green";
-
-    const secondaryColor = document.getElementById("secondaryColor");
-    if (secondaryColor) secondaryColor.value = originalDbData.secondary_color ?? "NightView Black";
-
-    const fontSelect = document.getElementById("font");
-    if (fontSelect) fontSelect.value = originalDbData.font || "NightView Font";
-
-    // Reset weekdays section
-    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-    days.forEach((day) => {
-        const hoursElement = document.getElementById(`${day}-hours`);
-        const ageElement = document.getElementById(`${day}-age`);
-        const offerButton = document.getElementById(`${day}-offer`);
-
-        const dayHours = originalDbData.opening_hours?.[day];
-        if (hoursElement) {
-            hoursElement.value = dayHours && dayHours.open && dayHours.close
-                ? `${dayHours.open} - ${dayHours.close}`
-                : "Closed";
-        }
-
-        const dayAgeRestriction = dayHours?.ageRestriction ?? originalDbData.age_restriction;
-        if (ageElement) {
-            ageElement.value = dayAgeRestriction && dayAgeRestriction >= 18
-                ? `${dayAgeRestriction}+`
-                : "Not set";
-        }
-
-        const hasSpecificOffer = !!originalDbData.opening_hours?.[day]?.daily_offer;
-        const hasMainOffer = !!mainOfferImgUrl;
-        days.forEach((day) => {
-            const hoursElement = document.getElementById(`${day}-hours`);
-            const ageElement = document.getElementById(`${day}-age`);
-            const offerButton = document.getElementById(`${day}-offer`);
-
-            const dayHours = originalDbData.opening_hours?.[day];
-            if (hoursElement) {
-                hoursElement.value = dayHours && dayHours.open && dayHours.close
-                    ? `${dayHours.open} - ${dayHours.close}`
-                    : "Closed";
-            }
-
-            const dayAgeRestriction = dayHours?.ageRestriction ?? originalDbData.age_restriction;
-            if (ageElement) {
-                ageElement.value = dayAgeRestriction && dayAgeRestriction >= 18
-                    ? `${dayAgeRestriction}+`
-                    : "Not set";
-            }
-
-            const hasSpecificOffer = !!originalDbData.opening_hours?.[day]?.daily_offer;
-            const hasMainOffer = !!mainOfferImgUrl;
-            if (offerButton) {
-                offerButton.textContent = hasSpecificOffer ? "Specific Offer" : hasMainOffer ? "Main Offer" : "Add Offer";
-                offerButton.classList.toggle("has-offer", hasSpecificOffer || hasMainOffer);
-                // Remove existing listener to prevent duplicates
-                offerButton.removeEventListener("click", offerButton._clickHandler);
-                offerButton._clickHandler = () => handleOfferAction(day, clubId, offerButton);
-                offerButton.addEventListener("click", offerButton._clickHandler);
-            }
-        });
-    });
-
-    updateImagesSection(clubId);
-    syncAndUpdatePreview();
+    showLoading();
+    loadData(clubId)
+    hideLoading();
+    return;
+//     // loadData(clubId, true);
+//     // return
+//
+//     // Restore local variables to original state
+//     localClubData = {
+//         ...originalDbData,
+//         opening_hours: {...(originalDbData.opening_hours || {})},
+//         tags: originalDbData.tags ? [...originalDbData.tags] : []
+//     };
+//     mainOfferImgUrl = originalMainOfferImgUrl;
+//     localOfferImages = {};
+//
+//
+//     // Reconstruct clubData with original values
+//     const clubData = {
+//         name: originalDbData.name || "Unknown Club",
+//         logo: originalLogoUrl,
+//         ageRestriction: originalDbData.age_restriction && originalDbData.age_restriction >= 16
+//             ? `${originalDbData.age_restriction}+`
+//             : "Unknown age restriction",
+//         openingHours: formatOpeningHours(originalDbData.opening_hours),
+//         distance: "300 m",
+//         isFavorite: true,
+//         typeOfClub: originalDbData.type_of_club || "unknown",
+//     };
+//
+//     // Populate DOM (similar to loadData, but using stored data)
+//     const clubNameH1 = document.querySelector(".header-title");
+//     if (clubNameH1) clubNameH1.textContent = clubData.name;
+//
+//     const clubLogoImg = document.getElementById("clubLogoImg");
+//     if (clubLogoImg) {
+//         clubLogoImg.src = clubData.logo || ""; // Set to empty string if no logo
+//         clubLogoImg.addEventListener("click", () => {
+//             if (!clubData.logo || isDefaultLogo(clubLogoImg.src)) {
+//                 uploadNewLogo(selectedClubId, clubLogoImg);
+//             } else {
+//                 showLogoPopup(selectedClubId, clubLogoImg);
+//             }
+//         });
+//     }
+//     const clubTypeImg = document.getElementById("clubTypeImg");
+//     if (clubTypeImg) {
+//         clubTypeImg.src = originalDbData.type_of_club
+//             ? `../images/clubtype/${originalDbData.type_of_club}_icon.png`
+//             : "../images/clubtype/bar_icon.png";
+//     }
+//
+//     const clubNameInput = document.getElementById("clubNameInput");
+//     if (clubNameInput) clubNameInput.value = clubData.name;
+//
+//     const clubDisplayName = document.getElementById("clubDisplayName");
+//     if (clubDisplayName) clubDisplayName.value = originalDbData.displayName || clubData.name;
+//
+//     const typeOfClubSelect = document.getElementById("typeOfClubSelect");
+//     if (typeOfClubSelect) {
+//         typeOfClubSelect.value = originalDbData.type_of_club || "";
+//     }
+//
+//     const lat = document.getElementById("lat");
+//     if (lat) lat.value = originalDbData.lat ?? "";
+//
+//     const lon = document.getElementById("lon");
+//     if (lon) lon.value = originalDbData.lon ?? "";
+//
+// // Normalize corners to [lat, lon] format when resetting
+//     localClubData.corners = Array.isArray(originalDbData.corners)
+//         ? originalDbData.corners.map(corner => {
+//             if (corner instanceof GeoPoint) {
+//                 return corner;
+//             } else if (Array.isArray(corner)) {
+//                 return new GeoPoint(corner[0], corner[1]);
+//             } else if (corner && typeof corner === 'object' && '_lat' in corner && '_long' in corner) {
+//                 return new GeoPoint(corner._lat, corner._long);
+//             }
+//             return null;
+//         }).filter(c => c !== null && c.latitude != null && c.longitude != null)
+//         : [];
+//     if (localClubData.corners.length > 0) {
+//         localClubData.corners.forEach((corner, index) => {
+//             const latInput = document.getElementById(`corner${index + 1}-lat`);
+//             const lonInput = document.getElementById(`corner${index + 1}-lon`);
+//             if (latInput) latInput.value = corner.latitude ?? "";
+//             if (lonInput) lonInput.value = corner.longitude ?? "";
+//         });
+//     } else {
+//         for (let i = 1; i <= 4; i++) {
+//             const latInput = document.getElementById(`corner${i}-lat`);
+//             const lonInput = document.getElementById(`corner${i}-lon`);
+//             if (latInput) latInput.value = "";
+//             if (lonInput) lonInput.value = "";
+//         }
+//     }
+//
+//     const maxVisitors = document.getElementById("maxVisitors");
+//     if (maxVisitors) maxVisitors.value = originalDbData.total_possible_amount_of_visitors ?? "";
+//
+//     const entryPrice = document.getElementById("entryPrice");
+//     if (entryPrice) entryPrice.value = originalDbData.entry_price ?? "0";
+//
+//     const primaryColor = document.getElementById("primaryColor");
+//     if (primaryColor) primaryColor.value = originalDbData.primary_color ?? "NightView Green";
+//
+//     const secondaryColor = document.getElementById("secondaryColor");
+//     if (secondaryColor) secondaryColor.value = originalDbData.secondary_color ?? "NightView Black";
+//
+//     const fontSelect = document.getElementById("font");
+//     if (fontSelect) fontSelect.value = originalDbData.font || "NightView Font";
+//
+//     // Reset weekdays section
+//     const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+//     days.forEach((day) => {
+//         const hoursElement = document.getElementById(`${day}-hours`);
+//         const ageElement = document.getElementById(`${day}-age`);
+//         const offerButton = document.getElementById(`${day}-offer`);
+//
+//         const dayHours = originalDbData.opening_hours?.[day];
+//         if (hoursElement) {
+//             hoursElement.value = dayHours && dayHours.open && dayHours.close
+//                 ? `${dayHours.open} - ${dayHours.close}`
+//                 : "Closed";
+//         }
+//
+//         const dayAgeRestriction = dayHours?.ageRestriction ?? originalDbData.age_restriction;
+//         if (ageElement) {
+//             ageElement.value = dayAgeRestriction && dayAgeRestriction >= 18
+//                 ? `${dayAgeRestriction}+`
+//                 : "Not set";
+//         }
+//
+//         const hasSpecificOffer = !!originalDbData.opening_hours?.[day]?.daily_offer;
+//         const hasMainOffer = !!mainOfferImgUrl;
+//         days.forEach((day) => {
+//             const hoursElement = document.getElementById(`${day}-hours`);
+//             const ageElement = document.getElementById(`${day}-age`);
+//             const offerButton = document.getElementById(`${day}-offer`);
+//
+//             const dayHours = originalDbData.opening_hours?.[day];
+//             if (hoursElement) {
+//                 hoursElement.value = dayHours && dayHours.open && dayHours.close
+//                     ? `${dayHours.open} - ${dayHours.close}`
+//                     : "Closed";
+//             }
+//
+//             const dayAgeRestriction = dayHours?.ageRestriction ?? originalDbData.age_restriction;
+//             if (ageElement) {
+//                 ageElement.value = dayAgeRestriction && dayAgeRestriction >= 18
+//                     ? `${dayAgeRestriction}+`
+//                     : "Not set";
+//             }
+//
+//             const hasSpecificOffer = !!originalDbData.opening_hours?.[day]?.daily_offer;
+//             const hasMainOffer = !!mainOfferImgUrl;
+//             if (offerButton) {
+//                 offerButton.textContent = hasSpecificOffer ? "Specific Offer" : hasMainOffer ? "Main Offer" : "Add Offer";
+//                 offerButton.classList.toggle("has-offer", hasSpecificOffer || hasMainOffer);
+//                 // Remove existing listener to prevent duplicates
+//                 offerButton.removeEventListener("click", offerButton._clickHandler);
+//                 offerButton._clickHandler = () => handleOfferAction(day, clubId, offerButton);
+//                 offerButton.addEventListener("click", offerButton._clickHandler);
+//             }
+//         });
+//     });
+//
+//     updateImagesSection(clubId);
+//     syncAndUpdatePreview();
 }
 
 async function uploadNewLogo(clubId, logoImgElement, popup) {
@@ -513,7 +680,8 @@ async function uploadNewLogo(clubId, logoImgElement, popup) {
 
             const tempUrl = URL.createObjectURL(pendingLogoBlob);
             logoImgElement.src = tempUrl;
-            localClubData.logo = tempUrl; // ✅ use the preview URL to trigger iPhone update
+            localClubData.logo = pendingLogoFilename;      // ✅ Filename for saving
+            localClubData.logoPreviewUrl = tempUrl;        // ✅ Blob URL for preview
 
             syncClubDataCache(clubId);
             updateImagesSection(clubId);
@@ -521,7 +689,11 @@ async function uploadNewLogo(clubId, logoImgElement, popup) {
             syncAndUpdatePreview(); // ✅ triggers iPhone logo refresh
         } catch (error) {
             console.error("❌ Error preparing logo for deferred upload:", error);
-            alert("Failed to prepare logo.");
+            showAlert({
+                title: 'Logo Error',
+                text: 'Failed to prepare logo.',
+                icon: swalTypes.error
+            });
         }
     };
 }
@@ -548,6 +720,7 @@ function syncAndUpdatePreview() {
     const nameValue = document.getElementById("clubNameInput").value.trim();
     const displayNameValue = document.getElementById("clubDisplayName").value.trim();
     localClubData.displayName = nameValue === displayNameValue ? null : displayNameValue;
+    localClubData.tags = localClubData.tags || [];
 
     localClubData.type_of_club = document.getElementById("typeOfClubSelect").value;
     localClubData.entry_price = parseFloat(document.getElementById("entryPrice").value || "0");
@@ -557,15 +730,23 @@ function syncAndUpdatePreview() {
     localClubData.lat = parseFloat(document.getElementById("lat").value);
     localClubData.lon = parseFloat(document.getElementById("lon").value);
 
-    // Get today's data from DOM for UI preview only
-    const hoursValue = document.getElementById(`${today}-hours`).value;
-    let open, close;
-    if (hoursValue === "Closed") {
-        open = "00:00";
-        close = "00:00";
-    } else {
-        [open, close] = hoursValue.split(" - ");
+    localClubData.corners = [];
+    for (let i = 1; i <= 4; i++) {
+        const latStr = document.getElementById(`corner${i}-lat`)?.value.trim();
+        const lonStr = document.getElementById(`corner${i}-lon`)?.value.trim();
+        const lat = parseFloat(latStr);
+        const lon = parseFloat(lonStr);
+        if (!isNaN(lat) && !isNaN(lon)) {
+            localClubData.corners.push(new GeoPoint(lat, lon));
+        }
     }
+
+
+    // Get today's data from DOM for UI preview only
+    const dayData = localClubData.opening_hours[today];
+    const hoursValue = dayData && dayData.open && dayData.close
+        ? `${dayData.open} - ${dayData.close}`
+        : document.getElementById(`${today}-hours`).value || "Closed";
 
     const ageValue = document.getElementById(`${today}-age`).value.replace("+", "");
     const ageRestriction = ageValue ? parseInt(ageValue) : localClubData.age_restriction;
@@ -574,7 +755,7 @@ function syncAndUpdatePreview() {
     // Update iPhone preview for today
     updateIPhoneDisplay({
         displayName: displayNameToUse,
-        logo: localClubData.logo,
+        logo: localClubData.logoPreviewUrl || localClubData.logo,
         type: localClubData.type_of_club,
         ageRestriction: ageRestriction >= 16 ? ageRestriction : localClubData.age_restriction,
         entryPrice: localClubData.entry_price,
@@ -619,7 +800,6 @@ function setupLivePreviewBindings() {
         ageElem.addEventListener("input", syncAndUpdatePreview);
     }
 
-    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
     days.forEach((day) => {
         const hoursElement = document.getElementById(`${day}-hours`);
         const hoursContainer = hoursElement?.parentElement;
@@ -788,8 +968,25 @@ function showTimePicker(day, hoursElement, onTimeSelect) {
         const closeTime = closeInput.value;
         const newHours = openTime && closeTime ? `${openTime} - ${closeTime}` : "Closed";
         hoursElement.value = newHours;
+
+        // Update localClubData immediately
+        if (newHours === "Closed") {
+            localClubData.opening_hours[day] = null;
+        } else {
+            if (!localClubData.opening_hours[day]) {
+                localClubData.opening_hours[day] = {};
+            }
+            localClubData.opening_hours[day].open = openTime;
+            localClubData.opening_hours[day].close = closeTime;
+        }
+
         onTimeSelect(day, newHours);
         popup.remove();
+
+        // Update the preview if it's the current day
+        if (day === getTodayKey()) {
+            syncAndUpdatePreview();
+        }
     });
     popup.appendChild(saveButton);
 
@@ -847,7 +1044,11 @@ function showAgePicker(day, ageElement, onAgeSelect) {
     saveButton.addEventListener("click", () => {
         let newAge = parseInt(ageInput.value);
         if (isNaN(newAge) || newAge < 16 || newAge > 35) {
-            alert("Please enter an age between 16 and 35.");
+            showAlert({
+                title: 'Invalid Age',
+                text: 'Please enter an age between 16 and 35.',
+                icon: swalTypes.warning
+            });
             return;
         }
         onAgeSelect(day, newAge);
@@ -905,34 +1106,34 @@ function uploadSpecificOffer(day, clubId, offerButton, popup) {
     input.onchange = async () => {
         const file = input.files[0];
         if (!file) return;
-        const blob = await convertToWebP(file); // ensure you convert to a Blob early
+
+        const blob = await convertToWebP(file);
         const previewUrl = URL.createObjectURL(blob);
 
-        offerButton.textContent = "Uploading...";
+        offerButton.textContent = "Processing...";
         offerButton.disabled = true;
 
         try {
-            const uploadedFileName = file.name;
+            localOfferImages[day] = {blob, previewUrl};
 
             if (!localClubData.opening_hours[day]) {
                 localClubData.opening_hours[day] = {};
             }
+            localClubData.opening_hours[day].daily_offer = `${day}_offer.webp`;
 
-            localOfferImages[day] = {blob, previewUrl};
-            localClubData.opening_hours[day] = {
-                ...(localClubData.opening_hours[day] || {}),
-                daily_offer: `${day}_offer.webp`
-            };
             syncClubDataCache(clubId);
             offerButton.textContent = "Specific Offer";
             offerButton.classList.add("has-offer");
             updateImagesSection(clubId);
             if (popup) popup.remove();
-            // showOfferPopup(day, clubId, offerButton);
             if (day === getTodayKey()) syncAndUpdatePreview();
         } catch (error) {
             console.error(`Error processing specific offer for ${day}:`, error);
-            alert(`Failed to process specific offer for ${day}.`);
+            showAlert({
+                title: 'Offer Upload Failed',
+                text: `Failed to process specific offer for ${day}.`,
+                icon: swalTypes.error
+            });
         } finally {
             offerButton.disabled = false;
         }
@@ -940,16 +1141,15 @@ function uploadSpecificOffer(day, clubId, offerButton, popup) {
 }
 
 export async function getOfferImageUrl(clubId, day) {
-    const clubData = getClubs().find(club => club.id === clubId) || localClubData;
+    const clubData = getAllVisibleLocations().find(club => club.id === clubId) || localClubData;
     const dayData = clubData?.opening_hours?.[day];
-
     const offerFileName = dayData?.daily_offer ?? null;
-    if (offerFileName) {
-        if (localOfferImages[day]) return localOfferImages[day];
 
-        // const storagePath = `daily_offers/${offerFileName}`;
-        const storagePath = `${databaseStorage.clubImages}/${databaseStorage.clubOffers}/${offerFileName}`;
-        //TODO CHANGED PATH
+    if (offerFileName) {
+        if (localOfferImages[day]?.previewUrl) {
+            return localOfferImages[day].previewUrl;
+        }
+        const storagePath = `${databaseStorage.clubImages}/${clubId}/${databaseStorage.clubOffers}/${offerFileName}`;
         try {
             return await getDownloadURL(ref(storage, storagePath));
         } catch (error) {
@@ -964,7 +1164,7 @@ function syncClubDataCache(clubId) {
     // No need to update the global cache here since setClubDataCache is only called at startup
     // This function can be a placeholder or removed if it’s only used to sync localClubData with DOM changes
     // For now, we’ll assume it’s called to ensure localClubData reflects the latest changes
-    const clubs = getClubs();
+    const clubs = getAllVisibleLocations();
     const index = clubs.findIndex(club => club.id === clubId);
     if (index !== -1) {
         // Optionally update localClubData from the cache if needed, but typically changes flow TO localClubData
@@ -977,7 +1177,7 @@ function arraysEqual(arr1, arr2) {
     if (!arr1 || !arr2) return arr1 === arr2;
     if (arr1.length !== arr2.length) return false;
     for (let i = 0; i < arr1.length; i++) {
-        if (arr1[i]._lat !== arr2[i]._lat || arr1[i]._long !== arr2[i]._long) {
+        if (arr1[i].latitude !== arr2[i].latitude || arr1[i].longitude !== arr2[i].longitude) {
             return false;
         }
     }
@@ -1025,6 +1225,16 @@ function getChanges() {
     }
     if (localClubData.font !== originalDbData.font) {
         changes.push({ field: "Font", oldValue: originalDbData.font, newValue: localClubData.font });
+    }
+
+    const originalTags = (originalDbData.tags || []).slice().sort(); // Create a sorted copy
+    const currentTags = (localClubData.tags || []).slice().sort();   // Create a sorted copy
+    if (!arraysEqualPrimitive(originalTags, currentTags)) {
+        changes.push({
+            field: "Tags",
+            oldValue: originalTags.join(", "),
+            newValue: currentTags.join(", ")
+        });
     }
 
     // Logo
@@ -1077,7 +1287,11 @@ function showChangesPopup() {
 
     const changes = getChanges();
     if (changes.length === 0) {
-        alert("No changes to save.");
+        showAlert({
+            title: 'No Changes',
+            text: 'There are no changes to save.',
+            icon: swalTypes.info
+        });
         return;
     }
 
@@ -1149,32 +1363,44 @@ function showChangesPopup() {
 
 // Placeholder for saving logic
 async function saveChanges() {
-
-    // const errors = validateClubData();
-    // if (errors.length > 0) {
-    //     alert("Please fix the following issues:\n\n" + errors.join("\n"));
-    //     return;
-
-
-//   localClubData = prepareDataForUpload(...localClubData); //TODO one
-
-// Clean up: Set any useless day object to `null`
-
-
-    console.log("Saving changes...", localClubData);
-    const selectedClubId = getClubSession(); // Get the currently selected club ID
-    if (!selectedClubId) {
-        alert("No club selected to save.");
+    const errors = validateClubData();
+    if (errors.length > 0) {
+        console.log("Validation failed:", errors);
+        showAlert({
+            title: '⚠️ Please Review the Form',
+            html: `<ul style="text-align: left;">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`,
+            icon: swalTypes.warning
+        });
         return;
     }
 
-    // Format logo
+    console.log("Saving changes...", localClubData); // This is where you see output
+    const selectedClubId = getClubSession();
+    if (!selectedClubId) {
+        console.log("No club selected");
+        showAlert({
+            title: 'No Club Selected',
+            text: 'Please select a club before saving.',
+            icon: swalTypes.warning
+        });
+        return;
+    }
+
+    showLoading();
+
+    console.log("Fetching logo name...");
     localClubData.logo = await getAvailableLogoName(localClubData.name);
+    console.log("Logo name assigned:", localClubData.logo);
 
+    console.log("Collecting days data...");
     collectAllDaysData();
+    console.log("Calculating entry price and age...");
     calculateEntryPriceAndAgeAndResetDaily();
-    const changes = getChanges(); // Get list of detected changes
+    console.log("Getting changes...");
+    const changes = getChanges();
+    console.log("Changes detected:", changes);
 
+    console.log("Processing opening hours...");
     Object.keys(localClubData.opening_hours).forEach((day) => {
         const hoursField = document.getElementById(`${day}-hours`);
         const isClosed = hoursField?.value?.trim().toLowerCase() === "closed";
@@ -1184,69 +1410,153 @@ async function saveChanges() {
     });
 
     try {
+        console.log("Preparing club ID...");
         const clubIdName = localClubData.logo
             .replace(".webp", "")
-            .replace("_logo", "") // 🔥 This removes "_logo.webp"
+            .replace("_logo", "")
             .replace(/\s+/g, "_");
-
         let clubIdForUpload = selectedClubId === "add-new" ? clubIdName : selectedClubId;
+        console.log("Club ID for upload:", clubIdForUpload);
+
+        localClubData = prepareDataForUpload(localClubData);
+        console.log("Data prepared for upload:", JSON.stringify(localClubData, null, 2));
 
         if (selectedClubId === "add-new") {
-            // 🆕 NEW CLUB: Save all localClubData into club_data_new
-            const customDocRef = doc(db, databaseCollections.newClubs, clubIdName);
-
+            console.log("Saving new club...");
+            let customDocRef = doc(db, databaseCollections.newClubs, clubIdName);
+            // if (getSession().role === 'admin') {
+            //     customDocRef = doc(db, databaseCollections.clubData, clubIdName);
+            // }
             localClubData.created_by = getSession().uid;
             localClubData.created_at = serverTimestamp();
             localClubData.processed = false;
 
             await setDoc(customDocRef, localClubData);
-            console.log("New club added with custom ID:", clubIdName);
+            console.log("New club saved with ID:", clubIdName);
         } else {
-            // 🛠️ EXISTING CLUB: Save only the changes into club_data_changes
-            const changePayload = {
-                clubId: selectedClubId,    // Keep track which club is changed
-                changes: changes,          // All the fields that changed
-                timestamp: new Date(),     // Optional: track when change was made
-                madeBy: getSession().uid,  // Optional: track who made the change
-            };
-            // console.log("Changes saved to club_data_changes with ID:", changeRef.id);
+            console.log("Updating existing club...");
+
+            const existingClubDocRef = doc(db, databaseCollections.clubData, selectedClubId);
+
+            try {
+                // Step 1: Get current document
+                const existingSnap = await getDoc(existingClubDocRef);
+
+                if (existingSnap.exists()) {
+                    const existingData = existingSnap.data();
+
+                    // Step 2: Save backup in a backup collection or versioned subcollection
+                    try {
+                        const backupRef = doc(
+                            db,
+                            databaseCollections.clubDataBackups,
+                            `${selectedClubId}_${Date.now()}`
+                        );
+                        await setDoc(backupRef, {
+                            ...existingData,
+                            backup_created_at: serverTimestamp(),
+                            backup_created_by: getSession().uid,
+                        });
+                        console.log("Backup created for club:", selectedClubId);
+                    } catch (err) {
+                        console.error("Failed to create backup. Update aborted:", err);
+                        return; // 🛑 Bail out — don’t proceed
+                    }
+
+                    // Step 3: Proceed with update
+                    await setDoc(
+                        existingClubDocRef,
+                        {
+                            ...localClubData,
+                            updated_at: serverTimestamp(),
+                            updated_by: getSession().uid,
+                        },
+                        {merge: true}
+                    );
+
+                    console.log("Existing club updated with ID:", selectedClubId);
+                    loadData(selectedClubId, true);
+                } else {
+                    console.warn(`Club with ID ${selectedClubId} does not exist.`);
+                }
+            } catch (error) {
+                console.error("Error during club update:", error);
+            }
         }
 
-// Upload deferred logo if needed
         if (pendingLogoBlob && pendingLogoFilename) {
+            console.log("Uploading logo...");
             pendingLogoFilename = localClubData.logo;
-
             const path = `${databaseStorage.clubLogos}/${pendingLogoFilename}`;
             await uploadImageToFirestore(pendingLogoBlob, path);
+            console.log("Logo uploaded successfully");
             pendingLogoBlob = null;
             pendingLogoFilename = null;
         }
 
+        console.log("Starting daily offer uploads...");
         for (const day of Object.keys(localClubData.opening_hours)) {
             const dayData = localClubData.opening_hours[day];
             const offerName = dayData?.daily_offer;
-            const offerImageData = localOfferImages[day];
+            let offerImageData = localOfferImages[day];
 
-            if (offerName && offerImageData?.blob) {
-                console.log(`Uploading offer for ${day}:`, offerName, offerImageData.blob);
+            if ((!offerImageData || !offerImageData.blob) && offerName) {
+                console.log(`Fetching blob for ${day} offer...`);
+                try {
+                    const imgEl = document.querySelector(`#${day}-offer-image`);
+                    if (imgEl?.src) {
+                        const blob = await fetch(imgEl.src).then(res => res.blob());
+                        offerImageData = {blob};
+                        localOfferImages[day] = offerImageData;
+                    } else {
+                        console.warn(`No image element for ${day}, skipping.`);
+                    }
+                } catch (error) {
+                    console.error(`Error fetching blob for ${day}:`, error);
+                }
+            }
+
+            if (offerName && offerImageData?.blob instanceof Blob) {
                 const path = `${databaseStorage.clubImages}/${clubIdForUpload}/${databaseStorage.clubOffers}/${offerName}`;
+                console.log(`Uploading offer for ${day}: ${offerName}`);
                 await uploadImageToFirestore(offerImageData.blob, path);
-                console.log(`✅ Uploaded daily offer for ${day}: ${offerName}`);
+                console.log(`Offer for ${day} uploaded`);
+            } else {
+                console.log(`Skipping ${day}: No valid offer image`);
             }
         }
 
         if (window.menuImages?.length) {
+            console.log("Uploading menu images...");
             for (const img of window.menuImages) {
                 const path = `${databaseStorage.clubImages}/${clubIdForUpload}/${img.name}`;
                 await uploadImageToFirestore(img.file, path);
-                console.log(`✅ Uploaded menu image: ${img.name}`);
+                console.log(`Menu image uploaded: ${img.name}`);
             }
         }
-
-        alert("New club submitted for approval!");
+        hideLoading();
+        console.log("Save completed, showing success alert...");
+        if (getClubSession() === 'add-new') {
+            showAlert({
+                title: 'Location Submitted!',
+                text: 'New club submitted for approval!',
+                icon: swalTypes.success
+            });
+        } else {
+            const clubName = nameFormatter(getClubSession()); // TODO Format
+            showAlert({
+                title: 'Location successfully changed!',
+                text: `${clubName} has successfully been changed!`,
+                icon: swalTypes.success
+            });
+        }
     } catch (error) {
-        console.error("Error saving changes:", error);
-        alert("Failed to save changes. Please try again.");
+        console.error("Error during save:", error);
+        showAlert({
+            title: 'Save Failed',
+            text: 'Failed to save changes. Please try again.',
+            icon: swalTypes.error
+        });
     }
 }
 
@@ -1263,9 +1573,10 @@ function collectAllDaysData() {
         }
 
         const ageValue = document.getElementById(`${day}-age`).value.replace("+", "");
-        const ageRestriction = ageValue ? parseInt(ageValue) : localClubData.age_restriction;
-        dayData.ageRestriction = ageRestriction >= 16 ? ageRestriction : localClubData.age_restriction;
-
+        // const ageRestriction = ageValue ? parseInt(ageValue) : localClubData.age_restriction;
+        const ageRestriction = ageValue === "Not set" ? null : parseInt(ageValue);
+        // dayData.ageRestriction = ageRestriction >= 16 ? ageRestriction : localClubData.age_restriction;
+        dayData.ageRestriction = ageRestriction >= 16 ? ageRestriction : null;
         localClubData.opening_hours[day] = dayData;
     });
 }
@@ -1380,6 +1691,7 @@ function prepareNewClubForm() {
     updateImagesSection("add-new");
     setupLivePreviewBindings();
     bindLeftInputs();
+    setupTagSelection(); // Already present, just ensuring it's after localClubData initialization
     syncAndUpdatePreview();
 }
 
@@ -1505,6 +1817,7 @@ function createEmptyClubData() {
         primary_color: "NightView Green",
         secondary_color: "NightView Black",
         font: "NightView Font",
+        age_restriction: null,
         opening_hours: {
             monday: null,
             tuesday: null,
@@ -1514,12 +1827,17 @@ function createEmptyClubData() {
             saturday: null,
             sunday: null
         },
-        logo: ""
+        logo: "",
+        tags: [],
     };
 }
 
 function validateClubData() {
     const errors = [];
+
+    // if (localClubData.tags.length > 5) { //TODO Find amount of tags.
+    //     errors.push("Maximum 5 tags allowed");
+    // }
 
     // ✅ Required & type-validated fields
     if (!localClubData.name?.trim()) errors.push("Name is required.");
@@ -1530,19 +1848,32 @@ function validateClubData() {
     // if (!localClubData.font?.trim()) errors.push("Font must be selected.");
 
     // ✅ Numbers with range checks
-    if (!(localClubData.total_possible_amount_of_visitors > 0)) errors.push("Capacity must be a number greater than 0.");
+    if (!(localClubData.total_possible_amount_of_visitors >= 0)) errors.push("Capacity must be a number greater than 0.");
     if (isNaN(localClubData.entry_price) || localClubData.entry_price < 0) errors.push("Entry price must be a non-negative number.");
     if (isNaN(localClubData.lat) || localClubData.lat < -90 || localClubData.lat > 90) errors.push("Latitude must be between -90 and 90.");
     if (isNaN(localClubData.lon) || localClubData.lon < -180 || localClubData.lon > 180) errors.push("Longitude must be between -180 and 180.");
 
+    // ✅ Corners must all be filled (4 sets of lat/lon)
+    let cornersComplete = true;
+    for (let i = 1; i <= 4; i++) {
+        const lat = document.getElementById(`corner${i}-lat`)?.value.trim();
+        const lon = document.getElementById(`corner${i}-lon`)?.value.trim();
+        if (!lat || !lon || isNaN(parseFloat(lat)) || isNaN(parseFloat(lon))) {
+            cornersComplete = false;
+            break;
+        }
+    }
+    if (!cornersComplete) errors.push("All 4 corners must have valid latitude and longitude.");
+
     // ✅ Opening hours validation (at least 1 valid day)
-    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    //TODO Just check for not 7xnull.
     const hasValidDay = days.some(day => {
         const hours = localClubData.opening_hours?.[day];
-        return hours && hours.open && hours.close && hours.open !== "00:00" && hours.close !== "00:00";
+        console.log(hours)
+        return hours && hours.open && hours.close;
     });
     if (!hasValidDay) errors.push("At least one day must have valid opening hours.");
-
+//TODO
     return errors;
 }
 
@@ -1773,6 +2104,51 @@ function showImagePopup(clubId, imageType, imageUrl, buttonElement) {
     setTimeout(() => document.addEventListener("click", closePopup), 0);
 }
 
+function prepareDataForUpload(data) {
+    const defaultData = {
+        // Required non-nullable fields (must have valid values)
+        name: data.name || "Unknown Club", // String
+        logo: data.logo || "", // String (empty if no logo)
+        type_of_club: data.type_of_club || "", // String
+        type_of_club_img: data.type_of_club_img || "default_icon.png", // String
+        age_restriction: data.age_restriction !== null && data.age_restriction !== undefined ? data.age_restriction : 18, // int
+        total_possible_amount_of_visitors: data.total_possible_amount_of_visitors || 0, // int
+        visitors: data.visitors || 0, // int
+        rating: data.rating || 0, // int
+        lat: data.lat || 0, // double
+        lon: data.lon || 0, // double
+        favorites: data.favorites || [], // List<dynamic> (empty array)
+        corners: data.corners || [], // List<dynamic> (array of GeoPoints)
+        offer_type: data.offer_type || "none", // Enum (stored as string)
+        tags: data.tags || [],
+
+        // Nullable or optional fields (can be null)
+        main_offer_img: data.main_offer_img || null, // String?
+        opening_hours: data.opening_hours || {}, // Map<String, Map<String, dynamic>?>?
+
+        // Additional fields from your web app (optional) in snake_case
+        display_name: data.display_name || null,
+        entry_price: data.entry_price || 0,
+        primary_color: data.primary_color || "NightView Green",
+        secondary_color: data.secondary_color || "NightView Black",
+        font: data.font || "NightView Font",
+        created_by: data.created_by || null,
+        created_at: data.created_at || null,
+        processed: data.processed !== undefined ? data.processed : false
+    };
+
+    // Merge default values with the provided data, prioritizing provided values
+    return {...defaultData, ...data};
+}
+
+function arraysEqualPrimitive(a, b) {
+    return a.length === b.length && a.every((val, index) => val === b[index]);
+}
+
+
+
+
+
 
 
 
@@ -1792,10 +2168,8 @@ function handleGenericInput(e) {
 
 window.addEventListener("clubChanged", () => {
     const selectedClubId = getClubSession();
-    const uid = getSession().uid;
-    const role = getSession().role;
-    if (selectedClubId && window.currentUser) {
-        loadData({uid, role}, selectedClubId);
+    if (selectedClubId && checkSession()) {
+        loadData(selectedClubId);
     } else {
         console.log("No selected club or user context available.");
     }
@@ -1806,14 +2180,18 @@ document.getElementById("resetButton").addEventListener("click", () => {
     if (clubId) {
         resetData(clubId);
     } else {
-        alert("Cannot reset — missing club info.");
+        showAlert({
+            title: 'Reset Failed',
+            text: 'Cannot reset — missing club info.',
+            icon: swalTypes.error
+        });
     }
 });
 
 document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
         const popups = document.querySelectorAll(
-            ".color-picker-popup, .font-picker-popup, .time-picker-popup, .age-picker-popup, .offer-popup"
+            ".color-picker-popup, .font-picker-popup, .time-picker-popup, .age-picker-popup, .offer-popup, .tag-popup"
         );
         popups.forEach(popup => popup.remove());
     }

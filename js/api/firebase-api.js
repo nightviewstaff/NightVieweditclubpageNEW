@@ -1,31 +1,46 @@
 // firebase-api.js
 
-// Import Firebase modules
+// Core Firebase
 import {initializeApp} from "https://www.gstatic.com/firebasejs/9.6.7/firebase-app.js";
+
+// Firebase Services
 import {getAnalytics, logEvent} from "https://www.gstatic.com/firebasejs/9.6.7/firebase-analytics.js";
 import {
     addDoc,
-    collection as firestoreCollection,
-    doc as firestoreDoc,
-    getDoc as firestoreGetDoc,
-    getDocs as firestoreGetDocs,
+    arrayUnion,
+    collection,
+    deleteDoc,
+    doc,
+    GeoPoint,
+    getDoc,
+    getDocs,
     getFirestore,
+    orderBy,
+    query,
     serverTimestamp,
     setDoc,
-    updateDoc as firestoreUpdateDoc,
+    updateDoc,
+    where
 } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore.js";
 import {
-    deleteObject as firebaseDeleteObject,
-    getDownloadURL as firebaseGetDownloadURL,
+    deleteObject,
+    getDownloadURL,
     getStorage,
     ref,
     uploadBytes
 } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-storage.js";
 import {
-    getAuth as firebaseGetAuth,
-    onAuthStateChanged as firebaseOnAuthStateChanged
+    getAuth,
+    onAuthStateChanged,
+    signInWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-auth.js";
+
+// Utility Imports
 import {convertToWebP} from "../utilities/utility.js";
+import {databaseCollections} from "../utilities/constants.js";
+import {getAllLocations, getSession, getUser, saveAllLocationsSession, saveUserSession} from "../utilities/session.js";
+import {showAlert} from "../utilities/custom-alert.js";
+import {getAllVisibleLocations, setAllVisibleLocations} from "../utilities/global.js";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -42,10 +57,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
-const auth = firebaseGetAuth(app);
+const auth = getAuth(app);
 const storage = getStorage(app);
 
-// Export initialized services
+let clubDataCache = getAllLocations();
+
+//TODO SHould remove all exports and only have database interaction here.
+// Export initialized services // TODO remove
 export {
     storage,
     setDoc,
@@ -55,28 +73,166 @@ export {
     auth,
     logEvent,
     // Firestore exports
-    firestoreCollection as collection,
-    firestoreGetDocs as getDocs,
-    firestoreDoc as doc,
-    firestoreGetDoc as getDoc,
-    firestoreUpdateDoc as updateDoc,
+    collection,
+    getDocs,
+    getDoc,
+    addDoc,
+    doc,
+    updateDoc,
     serverTimestamp,
     // Storage exports
     getStorage,
     ref,
-    firebaseGetDownloadURL as getDownloadURL,
+    getDownloadURL,
     uploadBytes,
-    firebaseDeleteObject as deleteObject,
+    deleteObject,
+    deleteDoc,
     // Auth exports
-    firebaseGetAuth as getAuth,
-    firebaseOnAuthStateChanged as onAuthStateChanged,addDoc
+    getAuth,
+    onAuthStateChanged,
+    arrayUnion,
+    GeoPoint,
 };
+
+export async function loginWithEmailPassword(email, password) {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    const role = await fetchUserRole(user.uid);
+
+    return {user, role};
+}
+
+async function fetchUserRole(uid) {
+    const docSnap = await getDoc(doc(db, databaseCollections.userData, uid));
+    if (!docSnap.exists()) return 'user';
+    const data = docSnap.data();
+
+    saveUserSession(data); // Format when storing
+
+    if (data.is_admin === true) return 'admin';
+    if (Array.isArray(data.owned_clubs) && data.owned_clubs.length > 0) return 'owner';
+    if (Array.isArray(data.staff_clubs) && data.staff_clubs.length > 0) return 'staff';
+    return 'user';
+    //TODO should be able to create club.
+}
+
+export async function fetchRelevantClubsByIds() {
+    const session = getSession();
+    const user = getUser();
+    console.log(user)
+    console.log("Owned clubs:", user.owned_clubs);
+    console.log("Staff clubs:", user.staff_clubs);
+
+
+    if (session.role === 'admin') {
+        return await fetchAllLocations();
+    }
+
+    const authorizedIds = new Set([
+        ...(user.owned_clubs || []),
+        ...(user.staff_clubs || [])
+    ]);
+
+    if (authorizedIds.size === 0) return [];
+
+    const fetches = Array.from(authorizedIds).map(async id => {
+        try {
+            const clubRef = doc(db, databaseCollections.clubData, id);
+            const clubSnap = await getDoc(clubRef);
+            if (clubSnap.exists()) {
+                return {id: clubSnap.id, ...clubSnap.data()};
+            } else {
+                console.warn(`⚠️ Club not found: ${id}`);
+                return null;
+            }
+        } catch (e) {
+            console.error(`❌ Error fetching club ${id}:`, e);
+            return null;
+        }
+    });
+
+    const results = await Promise.all(fetches);
+    return results.filter(Boolean);
+}
+
+export async function fetchAllLocations() {
+    if (clubDataCache?.length) {
+        return clubDataCache;
+    }
+    try {
+        const locationsSnapshot = await getDocs(collection(db, databaseCollections.clubData));
+        clubDataCache = locationsSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+        saveAllLocationsSession(clubDataCache);
+        return clubDataCache;
+    } catch (error) {
+        console.error("❌ Error fetching locations:", error);
+        return [];
+    }
+}
+
+export async function fetchUsersByIds(ids = []) {
+    if (!Array.isArray(ids) || ids.length === 0) return [];
+
+    const fetches = ids.map(async id => {
+        try {
+            const userRef = doc(db, databaseCollections.userData, id);
+            const userSnap = await getDoc(userRef);
+            return userSnap.exists() ? {id: userSnap.id, ...userSnap.data()} : null;
+        } catch (e) {
+            console.error(`❌ Error fetching user ${id}:`, e);
+            return null;
+        }
+    });
+
+    //TODO Save users fetched locally
+
+    const results = await Promise.all(fetches);
+    return results.filter(Boolean); // filter out any nulls
+}
+
+export async function fetchUserById(uid) {
+    const cachedUsersJSON = sessionStorage.getItem('userCache');
+    let cachedUsers = cachedUsersJSON ? JSON.parse(cachedUsersJSON) : {};
+
+    const cachedUser = cachedUsers[uid];
+
+    // 🔎 Check if cached user has useful data
+    const hasValidData = cachedUser && (cachedUser.first_name || cachedUser.last_name || cachedUser.email);
+
+    if (hasValidData) {
+        return cachedUser;
+    }
+
+    try {
+        const userRef = doc(db, databaseCollections.userData, uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+            const user = {id: uid, ...userSnap.data()};
+            cachedUsers[uid] = user; // ✅ Overwrite stub
+            sessionStorage.setItem('userCache', JSON.stringify(cachedUsers));
+            return user;
+        }
+    } catch (e) {
+        console.error(`❌ Error fetching user ${uid}:`, e);
+    }
+
+    return null;
+}
+
+
+
+
+
 
 /**
  * Logs all documents from a given Firestore collection.
  * @param {string} collectionName
  */
-export async function logAllDocuments(collectionName = "club_data") {
+export async function logAllDocuments(collectionName = databaseCollections.clubData) {
     try {
         const querySnapshot = await getDocs(collection(db, collectionName));
         querySnapshot.forEach((doc) => {
@@ -91,25 +247,47 @@ export async function logAllDocuments(collectionName = "club_data") {
  * Uploads a notification document to Firestore.
  * @param {Object} notificationData
  */
-
-//TODo Make generic.
-export async function uploadNotification({ collection,header, message, createdBy, clubId, filters, scheduledFor }) {
+export async function uploadNotification({
+                                             header, message, createdBy,
+                                             clubId, filters, scheduledFor
+                                         }) {
     try {
-        await addDoc(firestoreCollection(db, collection), {
+        await addDoc(collection(db, databaseCollections.notifications), {
             header,
             message,
-            created_by,
-            club_id,
+            created_by: createdBy,
+            club_id: clubId,
             filters,
-            scheduled_for,
-            createdAt: serverTimestamp(),
+            scheduled_for: scheduledFor,
+            created_at: serverTimestamp(),
             processed: false
         });
         console.log("✅ Notification uploaded successfully!");
     } catch (err) {
         console.error("❌ Error uploading notification:", err);
-        alert("Failed to upload notification. Try again.");
+        showAlert({
+            title: 'Upload Failed',
+            text: 'Failed to upload notification. Try again.',
+            icon: swalTypes.error
+        });
+
     }
+}
+
+export async function fetchScheduledNotificationsForClub(clubId) {
+    const now = new Date().toISOString();
+    const q = query(
+        collection(db, databaseCollections.notifications),
+        where('club_id', '==', clubId),
+        where('scheduled_for', '>=', now),
+        //TODO Also not proccessed?
+        orderBy('scheduled_for', 'asc')
+    );
+
+    const snapshot = await getDocs(q);
+    console.log(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})));
+
+    return snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
 }
 
 /**
@@ -136,6 +314,26 @@ export async function uploadImageToFirestore(file, path) {
     }
 }
 
+export async function deleteNotificationById(id) {
+    const ref = doc(db, databaseCollections.notifications, id);
+    await deleteDoc(ref);
+}
+
+export async function refreshClubDataInCache(clubId) {
+    const docRef = doc(db, databaseCollections.clubData, clubId);
+    const updatedSnap = await getDoc(docRef);
+    if (!updatedSnap.exists()) return;
+
+    const updatedClub = { id: updatedSnap.id, ...updatedSnap.data() };
+    const clubs = getAllVisibleLocations() || [];
+    const index = clubs.findIndex(c => c.id === clubId);
+
+    if (index > -1) clubs[index] = updatedClub;
+    else clubs.push(updatedClub);
+
+    setAllVisibleLocations(clubs);
+}
+
 /**
  * Uploads a document to Firestore with tracking fields.
  * @param {string} collectionName - The Firestore collection.
@@ -154,6 +352,3 @@ export async function uploadData({collectionName, storagePath, uploadedBy, addit
     await setDoc(docRef, payload);
     console.log(`✅ Document saved with metadata: ${storagePath}`);
 }
-
-
-

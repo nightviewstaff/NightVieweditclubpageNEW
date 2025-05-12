@@ -1,20 +1,43 @@
-.club-list {
-    max-width: 600px;
-    margin: 40px auto;
-    padding: 20px;
-    border-radius: 8px;
-    background-color: #f7f7f7;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    font-family: sans-serif;
+
+.emoji-choice {
+    font-size: 2.2rem; /* Make emojis bigger */
+    padding: 10px;
+    margin: 6px;
+    border: none;
+    cursor: pointer;
+    background: none;
+    transition: transform 0.2s ease;
 }
 
-.club-row {
+.emoji-choice:hover {
+    transform: scale(1.25);
+}
+
+.tag-list {
     display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #ddd;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px;
 }
 
-.club-row:last-child {
-    border-bottom: none;
+.tag-row {
+    display: inline-flex;
+    align-items: center;
+    border: 1px dashed var(--night-view-green);
+    border-radius: 20px;
+    padding: 8px 12px;
+    font-size: 1.2rem;
+    background-color: var(--color-black);
+    transition: background 0.2s;
+    cursor: default;
+}
+
+.tag-row:hover {
+    background-color: var(--color-red);
+}
+
+.tag-row img.emoji-icon {
+    width: 1.5em;
+    height: 1.5em;
+    margin-right: 6px;
 }

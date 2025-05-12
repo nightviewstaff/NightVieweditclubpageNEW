@@ -209,3 +209,93 @@ max-height: 450px;
     background-color: var(--night-view-green);
 }
 
+
+.scheduled-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 14px;
+    table-layout: fixed;
+
+}
+
+.scheduled-table thead tr:first-child {
+    background: var(--night-view-purple);
+    color: var(--color-white);
+    font-size: 18px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.scheduled-table th,
+.scheduled-table td {
+    border: 1px solid #ccc;
+    padding: 12px;
+    vertical-align: top;
+    word-break: break-word;
+}
+
+.scheduled-table pre {
+    font-family: monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    margin: 0;
+    padding: 4px;
+}
+
+.scheduled-table th,
+.scheduled-table td {
+    border: 1px solid #ccc;
+    padding: 12px;
+    vertical-align: top;
+    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    position: relative;
+}
+
+.scheduled-table .truncate-cell:hover::after {
+    content: attr(data-fulltext);
+    position: absolute;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    z-index: 10;
+    top: 100%;
+    left: 0;
+    width: max-content;
+    max-width: 400px;
+    font-size: 12px;
+}
+
+.truncate-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px; /* or whatever fits best */
+    cursor: pointer;
+    position: relative;
+}
+
+.truncate-cell:hover::after {
+    content: attr(data-fulltext);
+    position: absolute;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    z-index: 100;
+    top: 100%;
+    left: 0;
+    width: max-content;
+    max-width: 400px;
+    font-size: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+

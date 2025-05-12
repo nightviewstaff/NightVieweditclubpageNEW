@@ -1,0 +1,16 @@
+/*alert.css*/
+
+.footer-default {
+    color: var(--night-view-green);
+    font-weight: bold;
+    font-size: 0.95rem;
+    font-family: 'Inter', sans-serif;
+    text-align: center;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    text-shadow: 0 0 6px rgba(22, 163, 74, 0.4); /* NightView green glow */
+}
+
+.swal2-footer {
+    border-top: 1px solid var(--night-view-purple); /* or any color */
+}

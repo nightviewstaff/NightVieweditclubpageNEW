@@ -22,6 +22,7 @@ export async function updateIPhoneDisplay(data) {
     if (iphoneContainer) {
         const resolvedFont = font ? `"${font}", sans-serif` : "var(--font-primary)";
 
+
         // Club Name
         const clubName = iphoneContainer.querySelector(".club-name h1");
         if (clubName) {
@@ -109,7 +110,7 @@ function initMap(lat, lon, logoUrl, type) {
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
     }).addTo(leafletMap);
-
+console.log(logoUrl)
     // TODO make marker typeOfClubImage if no logo.
     if (lat && lon && !isNaN(lat) && !isNaN(lon) && logoUrl) {
         const clubIcon = L.icon({
@@ -123,6 +124,3 @@ function initMap(lat, lon, logoUrl, type) {
     }
 
 }
-
-
-

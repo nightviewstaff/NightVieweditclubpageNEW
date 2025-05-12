@@ -1,14 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Admin</title>
 
     <link rel="stylesheet" href="../css/reusables/basic.css">
     <link rel="stylesheet" href="../css/reusables/navbar.css">
     <link rel="stylesheet" href="../css/reusables/button.css">
+    <link rel="stylesheet" href="../css/reusables/alert.css">
 
-<!--    <link rel="stylesheet" href="../css/specifics/admin-page.css">-->
+
+    <link rel="stylesheet" href="../css/specifics/admin-page.css">
+
+    <!-- Emoji Picker Styles -->
+    <style>
+        emoji-picker {
+            --emoji-size: 2rem;
+            --num-columns: 8;
+            width: 100%;
+            max-width: 500px;
+            height: 400px;
+        }
+        .tag-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .tag-form input, .tag-form button {
+            padding: 10px;
+            font-size: 1rem;
+        }
+        #chosen-emoji-display {
+            font-size: 2rem;
+            margin-left: 10px;
+        }
+    </style>
+
+    <!-- Emoji Picker Script -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 
     <script type="module" src="../js/utilities/init.js"></script>
     <script type="module" src="../js/utilities/navbar.js"></script>
@@ -16,6 +46,23 @@
 </head>
 <body>
 <nav-bar></nav-bar>
+
+<div>
+    <h2>Tag Manager</h2>
+    <h3>All tags:</h3>
+    <div id="tag-list" class="tag-list"></div>
+
+    <h3>Add new tag:</h3>
+    <div class="tag-form">
+        <emoji-picker id="emoji-picker"></emoji-picker>
+        <div>
+            Selected Emoji: <span id="chosen-emoji-display">None</span>
+        </div>
+        <input id="tag-name-input" type="text" placeholder="Tag name (max 15 chars)" maxlength="15">
+        <button id="add-tag-btn">Add Tag</button>
+    </div>
+</div>
+
 <div>
     <h1>Clubs ranked by followers</h1>
     <div id="club-list" class="club-list"></div>
@@ -23,6 +70,7 @@
 
 <div>
     <h1>Clubs queued for processing</h1>
+    <!-- Future implementation -->
 </div>
 </body>
 </html>

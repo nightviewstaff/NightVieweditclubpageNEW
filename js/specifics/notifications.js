@@ -1,10 +1,23 @@
 // notifications.js
+
 import {getClubSession, getSession} from "../utilities/session.js";
-import {getClubs, getUsersWithId} from '../utilities/global.js';
-import {init} from "../utilities/init.js";
-import {calculateUserAge, getUserGender, getUserNationality} from "../utilities/utility.js";
-import {uploadNotification} from "../api/firebase-api.js";
-import {databaseCollections} from "../utilities/constants.js";
+import {getAllVisibleLocations} from '../utilities/global.js';
+import {
+    calculateUserAge, formatDayDifference,
+    formatFiltersReadable,
+    formatFullDateTime, getNextDefaultPartyDay,
+    getUserGender,
+    getUserNationality
+} from "../utilities/utility.js";
+import {
+    deleteNotificationById,
+    fetchScheduledNotificationsForClub,
+    fetchUserById,
+    fetchUsersByIds,
+    uploadNotification
+} from "../api/firebase-api.js";
+import {swalTypes} from "../utilities/constants.js";
+import {showAlert} from "../utilities/custom-alert.js";
 
 const genderOptions = ['F', 'M'];
 const nationalityOptions = ['Danish', 'International'];
@@ -14,21 +27,32 @@ let totalSelected = 0;
 
 
 document.addEventListener("DOMContentLoaded", async () => {
-    await init();
     const clubId = getClubSession();
-    const club = getClubs().find(c => c.id === clubId);
+    const club = getAllVisibleLocations().find(c => c.id === clubId);
     const followerIds = club?.favorites || []; // Array of user IDs
 
     // Assuming a function exists to get user objects by IDs (not provided in your code)
-    const followers = await getUsersWithId(followerIds); // You need to implement this
+    const followers = await fetchUsersByIds(followerIds); // You need to implement this
 
 
     const totalDanishUsersNumber = followers.filter(u => getUserNationality(u) === 'Danish').length;
     const totalInternationalUsersNumber = followers.filter(u => getUserNationality(u) === 'International').length;
 
+    const nextDefaultDay = getNextDefaultPartyDay();
+    const dateInput = document.getElementById('notification-scheduled-for');
+    if (dateInput) {
+        const year = nextDefaultDay.getFullYear();
+        const month = String(nextDefaultDay.getMonth() + 1).padStart(2, '0');
+        const day = String(nextDefaultDay.getDate()).padStart(2, '0');
+        const hour = String(nextDefaultDay.getHours()).padStart(2, '0');
+        const minute = String(nextDefaultDay.getMinutes()).padStart(2, '0');
+
+        dateInput.value = `${year}-${month}-${day}T${hour}:${minute}`;
+    }
 
     ageMap = bucketUsersByAge(followers || []);
 
+    await loadScheduledNotifications()
     updateTotalFollowers();
     buildFilterGrid();
     updateTotalSelected();
@@ -44,16 +68,143 @@ window.addEventListener("clubChanged", async () => {
     console.log("Club changed – reloading data...");
 
     const clubId = getClubSession();
-    const club = getClubs().find(c => c.id === clubId);
+    const club = getAllVisibleLocations().find(c => c.id === clubId);
     const followerIds = club?.favorites || [];
 
-    const followers = await getUsersWithId(followerIds);
+    const followers = await fetchUsersByIds(followerIds);
     ageMap = bucketUsersByAge(followers || []);
 
+    await loadScheduledNotifications()
     updateTotalFollowers();
     buildFilterGrid();
     updateTotalSelected();
 });
+
+async function loadScheduledNotifications() {
+    const clubId = getClubSession();
+    const container = document.querySelector('.scheduled-notifications');
+    container.innerHTML = '<p>Loading...</p>';
+
+    try {
+        const notifications = await fetchScheduledNotificationsForClub(clubId);
+
+        if (notifications.length === 0) {
+            container.innerHTML = '<p>No upcoming scheduled notifications.</p>';
+            return;
+        }
+
+        const table = document.createElement('table');
+        table.classList.add('scheduled-table');
+
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th>Scheduled For</th>
+                    <th>Header</th>
+                    <th>Message</th>
+                    <th>Filters</th>
+                    <th>Creation Date</th>
+                    <th>Created By</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${notifications.map(n => {
+            const filters = formatFiltersReadable(n.filters);
+            
+            //TODO Figure out smart way to show whole message if very long.
+
+            return `
+            <tr>
+            <td>${formatDayDifference(n.scheduled_for)}<br>${formatFullDateTime(n.scheduled_for)}</td>
+            <td class="truncate-cell" data-fulltext="${n.header || ''}">${n.header || ''}</td>
+<td class="truncate-cell" data-fulltext="${n.message}">${n.message}</td>
+                            <td><pre>${filters}</pre></td>
+                            
+                            <td>${formatDayDifference(n.created_at.toDate())}<br>${formatFullDateTime(n.created_at.toDate())}</td>
+                         <td data-user-id="${n.created_by}">Loading...</td>
+
+                              <td>
+            <button class="button button-reset" data-id="${n.id}">Delete</button>
+        </td>
+                        </tr>
+                    `;
+        }).join('')}
+            </tbody>
+        `;
+
+        container.innerHTML = '';
+        container.appendChild(table);
+
+        const creatorCells = container.querySelectorAll('[data-user-id]');
+
+        for (const cell of creatorCells) {
+            const uid = cell.dataset.userId;
+            try {
+                const user = await fetchUserById(uid);
+                const firstName = user?.first_name || '';
+                const lastName = user?.last_name || '';
+                const fullName = (firstName + ' ' + lastName).trim();
+                const mail = user?.mail || '';
+
+                if (fullName && mail) {
+                    cell.innerHTML = `${fullName}<br>${mail}`;
+                    cell.setAttribute('data-fulltext', `${fullName} (${mail})`);
+                } else if (fullName) {
+                    cell.textContent = fullName;
+                    cell.setAttribute('data-fulltext', fullName);
+                } else if (mail) {
+                    cell.textContent = mail;
+                    cell.setAttribute('data-fulltext', mail);
+                } else {
+                    cell.textContent = 'Unknown';
+                    cell.setAttribute('data-fulltext', 'Unknown');
+                }
+            } catch (error) {
+                console.error(`Failed to fetch user with ID ${uid}:`, error);
+                cell.textContent = 'Unknown';
+                cell.setAttribute('data-fulltext', 'Unknown');
+            }
+        }
+
+
+// 🔥 Attach delete listeners
+        container.querySelectorAll('.button-reset').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.id;
+                const result = await showAlert({
+                    title: 'Delete Notification?',
+                    html: '<p>This cannot be undone. Are you sure?</p>',
+                    icon: swalTypes.warning,
+                    confirmText: 'Yes, delete it',
+                    cancelText: 'Cancel',
+                    showCancel: true, // 💡 This is what makes it a "confirm" dialog now
+                    confirmButtonColor: 'var(--color-red)',            // Red confirm
+                    cancelButtonColor: 'var(--night-view-green)'
+                });
+                if (!result.isConfirmed) return;
+
+                try {
+                    await deleteNotificationById(id);
+                    showAlert({
+                        title: 'Notification Deleted',
+                        text: `The notification was successfully removed.`, // TODO Show day when deleting.
+                        icon: swalTypes.success,
+                    });          // Re-render table
+                    await loadScheduledNotifications();
+                } catch (err) {
+                    console.error(`❌ Failed to delete notification ${id}:`, err);
+                    alert("Error deleting notification. See console for details.");
+                }
+            });
+        });
+
+
+    } catch (err) {
+        console.error('Failed to fetch notifications:', err);
+        container.innerHTML = '<p class="error">Error loading notifications. See console for details.</p>';
+    }
+}
 
 
 function bucketUsersByAge(users) {
@@ -69,10 +220,9 @@ function bucketUsersByAge(users) {
     return ageMap;
 }
 
-
 function updateTotalFollowers() {
     const clubId = getClubSession();
-    const club = getClubs().find(c => c.id === clubId);
+    const club = getAllVisibleLocations().find(c => c.id === clubId);
     const totalFolowers = club?.favorites?.length || 0;
 
     document.querySelectorAll('#total-followers-0, #total-followers-1')
@@ -415,23 +565,47 @@ document.getElementById('send-notification').addEventListener('click', async () 
     const scheduledForInput = document.getElementById('notification-scheduled-for').value;
 
     if (!message) {
-        alert('Please write a notification message.');
+        showAlert({
+            title: 'Missing Message',
+            text: 'Please write a notification message.',
+            icon: swalTypes.warning,
+        });
         console.error('🚨 Notification failed: No message written.');
         return;
     }
 
     if (window.totalSelected === 0) {
-        alert('No followers selected. Adjust your filters.');
+        showAlert({
+            title: 'No Followers Selected',
+            text: 'Adjust your filters and try again.',
+            icon: swalTypes.warning,
+        });
         console.error('🚨 Notification failed: No followers selected.');
         return;
     }
 
     if (!scheduledForInput) {
-        alert('Please choose when to send the notification.');
+        showAlert({
+            title: 'Missing Time',
+            text: 'Please choose when to send the notification.',
+            icon: swalTypes.warning
+        });
         console.error('🚨 Notification failed: No scheduled time selected.');
         return;
     }
 
+    const scheduledDate = new Date(scheduledForInput);
+    const nowPlus30Min = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes from now
+
+    if (scheduledDate < nowPlus30Min) {
+        showAlert({
+            title: 'Invalid Time',
+            text: 'Notifications must be scheduled at least 30 minutes into the future.',
+            icon: swalTypes.warning,
+        });
+        console.error('🚨 Notification failed: Scheduled time is too soon or in the past.');
+        return;
+    }
     console.log('🟢 Starting notification preparation...');
 
     // Step 1: Collect selected user IDs and filters
@@ -565,7 +739,11 @@ document.getElementById('send-notification').addEventListener('click', async () 
         const noNationalities = !finalFilters.nationalities || finalFilters.nationalities.length === 0;
 
         if (noAges && noGenders && noNationalities) {
-            alert('Please select at least one age, gender, or nationality filter.');
+            showAlert({
+                title: 'Missing Filters',
+                text: 'Please select at least one age, gender, or nationality filter.',
+                icon: swalTypes.warning
+            });
             console.error('🚨 Notification failed: No filters selected.');
             return; // ❌ STOP execution
         }
@@ -586,21 +764,54 @@ document.getElementById('send-notification').addEventListener('click', async () 
     console.log('📦 Final Notification Data:', notificationData);
 
     // Step 4: Upload to Firestore
-    try {
-        await uploadNotification(databaseCollections.notifications,notificationData);
-        console.log('🛠 MOCK upload:', notificationData);
-    } catch (err) {
-        console.error('❌ Upload failed:', err);
-        alert('Upload failed. See console for error.');
+    const previewResult = await showAlert({
+        title: 'Send Notification?',
+        html: `
+        <div style="text-align: left; font-size: 14px;">
+            <p><strong>Message:</strong> ${message}</p>
+            <p><strong>Scheduled For:</strong> ${formatFullDateTime(new Date(scheduledForInput))}</p>
+            <p><strong>Filters:</strong> ${formatFiltersReadable(filters)}</p>
+        </div>
+    `,
+        icon: swalTypes.info,
+        confirmText: 'Send',
+        cancelText: 'Edit',
+        cancelButtonColor: 'var(--color-red)',            // Red confirm
+        showCancel: true
+    });
+
+    if (!previewResult.isConfirmed) {
+        console.log('🚫 Upload canceled by user after preview.');
         return;
     }
 
     // Step 5: Clear fields
+    try {
+        await uploadNotification(notificationData);
+        console.log('✅ Notification uploaded:', notificationData);
+    } catch (err) {
+        console.error('❌ Upload failed:', err);
+        showAlert({
+            title: 'Upload Failed',
+            text: 'See the console for more details.',
+            icon: swalTypes.error
+        });
+        return;
+    }
+
+    // Step 6: Clear form and show success
     document.getElementById('notification-header').value = '';
     document.getElementById('notification-message').value = '';
     document.getElementById('notification-scheduled-for').value = '';
-    alert(`Notification queued for ${scheduledForInput} to ${selectedUserIds.length} followers!`);
-});
 
+    await loadScheduledNotifications()
+    showAlert({
+        title: 'Notification Queued',
+        text: `Scheduled for ${formatFullDateTime(scheduledForInput)} to ${selectedUserIds.length} follower${selectedUserIds.length === 1 ? '' : 's'}!`,
+        icon: swalTypes.success,
+        timer: null,
+    });
+
+});
 
 //TODO Cant chose categories with no one!

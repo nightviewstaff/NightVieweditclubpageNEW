@@ -60,7 +60,7 @@
     grid-auto-rows: auto;
     grid-auto-flow: row;
     gap: 8px; /* spacing between images */
-    border: 1px dashed var(--color-white);
+    border: 1px dashed var(--night-view-green);
     border-radius: var(--normal-border-radius);
     padding: 8px;
 }

@@ -1,138 +1,177 @@
-// navbar.js
-import {db, getDownloadURL, getStorage, ref} from '../api/firebase-api.js';
-import {doc, updateDoc} from 'https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore.js';
-import {clearSession, getSession, saveClubSession} from "./session.js";
-import {getClubs} from "./global.js"; // Only import what you need
+import {
+    arrayUnion,
+    collection,
+    db,
+    doc,
+    getDocs,
+    getDownloadURL,
+    getStorage,
+    ref,
+    updateDoc
+} from '../api/firebase-api.js';
+import {checkSession, clearSession, getClubSession, getSession, saveClubSession} from "./session.js";
+import {getAllVisibleLocations, isDataInitialized} from "./global.js";
 import {toTitleCase} from "./utility.js";
-
-document.addEventListener("DOMContentLoaded", () => {
-    const session = getSession();
-    if (session) {
-        const nav = document.querySelector('nav-bar');
-        if (nav && typeof nav.setUser === 'function') {
-            nav.setUser({uid: session.uid}, session.role);
-        }
-    }
-});
+import {databaseCollections, actualRoles} from "./constants.js";
+import {init} from "./init.js";
 
 class NavBar extends HTMLElement {
-
-    constructor() {
-        super();
-        this.user = null;
-        this.userRole = 'user';
-        this.selectedClubId = null;
-    }
-
-    setUser(user, role) {
-        this.user = user;
-        this.userRole = role;
-        window.currentUser = {uid: user.uid, role};
-        Object.freeze(window.currentUser);
-        this.updateNavbarVisibility(window.location.pathname.includes('login.html'));
-        if (['admin', 'owner', 'staff'].includes(role)) {
-            this.populateClubSelector(user.uid);
-            this.updateProfilePicture(user.uid);
-        }
-    }
-
-    async connectedCallback() {
+    connectedCallback() {
         const isLoginPage = window.location.pathname.includes('login.html');
 
+        // Render navbar structure immediately
         this.innerHTML = `
-        <nav>
-            <div class="navbar-logo">
-                <a href="https://night-view.dk/" target="_blank">
-                    <img id="navbar-logo" src="../../images/nightview/logo_text.png" alt="Logo">
-                </a>
-            </div>
-            ${!isLoginPage ? `
-            <ul class="anchor-container">
-                <li><a href="/NightVieweditclubpage/html/club-overview.html">Location Data</a></li>
-                <li><a href="/NightVieweditclubpage/html/notifications.html">Notifications</a></li>
-                <li><a href="/NightVieweditclubpage/html/user-data.html">User Data</a></li>
-                <li class="admin-link" style="display:none;"><a href="/NightVieweditclubpage/html/admin-page.html">Admin</a></li>
-            </ul>
-            <ul class="selector-container">
-                <li>
-                    <select id="club-selector">
-                        <option disabled selected>Clubs</option>
-                    </select>
-                </li>
-                <li>
-                    <select id="user-selector">
-                        <option disabled selected>Staff</option>
-                    </select>
-                </li>
-            </ul>` : ''}
-            <div class="navbar-right">
-                <ul id="navbar-right-column">
-                    ${!isLoginPage ? `
-                    <li class="profile-pic-item" style="display:none;">
-                        <img id="profile-pic" src="../../images/users/default_user_pb.jpg" alt="Profile Picture">
-                    </li>` : ''}
+            <nav>
+                <div class="navbar-logo">
+                    <a href="https://night-view.dk/" target="_blank">
+                        <img id="navbar-logo" src="../../images/nightview/logo_text.png" alt="Logo">
+                    </a>
+                </div>
+                ${!isLoginPage ? `
+                <ul class="anchor-container">
+                    <li><a href="/NightVieweditclubpage/html/club-overview.html">Location Data</a></li>
+                    <li><a href="/NightVieweditclubpage/html/notifications.html">Notifications</a></li>
+                    <li><a href="/NightVieweditclubpage/html/user-data.html">User Data</a></li>
+                    <li class="admin-link" style="display:none;"><a href="/NightVieweditclubpage/html/admin-page.html">Admin</a></li>
+                </ul>
+                <ul class="selector-container">
                     <li>
-                        <img id="language-flag" src="../../images/flags/uk.png" alt="Language" class="lang-flag">
+                        <select id="club-selector">
+                            <option disabled selected>Clubs</option>
+                        </select>
                     </li>
+                    <li>
+                        <select id="user-selector">
+                            <option disabled selected>Staff</option>
+                        </select>
+                    </li>
+                </ul>` : ''}
+                <div class="navbar-right">
+                    <ul id="navbar-right-column">
+                        ${!isLoginPage ? `
+                        <li class="profile-pic-item" style="display:none;">
+                            <img id="profile-pic" src="../../images/users/default_user_pb.jpg" alt="Profile Picture">
+                        </li>` : ''}
+                        <li>
+                            <img id="language-flag" src="../../images/flags/uk.png" alt="Language" class="lang-flag">
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            ${!isLoginPage ? `
+            <div id="profile-dropdown" class="profile-dropdown hidden">
+                <ul>
+                    <li id="logout-button">Log out</li>
                 </ul>
             </div>
-        </nav>
-        
-<!--        TODO ADD STAFF LOGIC-->
+            <div id="add-staff-modal" class="modal-overlay hidden">
+                <div class="modal-content">
+                    <button class="close-button">×</button>
+                    <h2>Add Staff Member</h2>
+                    <input type="text" id="staff-search" placeholder="Search by email..." />
+                    <div id="search-results"></div>
+                </div>
+            </div>
+            <style>
+                .profile-dropdown {
+                    color: var(--night-view-green);
+                    position: absolute;
+                    top: 120px;
+                    right: 20px;
+                    border: 1px solid #ddd;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    width: 8vw;
+                    z-index: 999;
+                }
+                .profile-dropdown ul {
+                    list-style: none;
+                    margin: 0;
+                    padding: 10px 0;
+                }
+                .profile-dropdown li {
+                    padding: 10px 20px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    font-size: large;
+                }
+                .profile-dropdown li:hover {
+                    background-color: var(--night-view-purple);
+                }
+                .modal-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background-color: rgba(0,0,0,0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                }
+                .modal-content {
+                    background: white;
+                    padding: 2em;
+                    border-radius: 10px;
+                    max-width: 600px;
+                    width: 100%;
+                    position: relative;
+                }
+                .close-button {
+                    position: absolute;
+                    top: 1rem;
+                    right: 1rem;
+                    background: #e74c3c;
+                    border: none;
+                    color: white;
+                    font-size: 1.5rem;
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: background 0.3s ease;
+                }
+                .close-button:hover {
+                    background: #c0392b;
+                }
+                #search-results {
+                    margin-top: 1em;
+                    max-height: 200px;
+                    overflow-y: auto;
+                }
+                .search-result-item {
+                    padding: 0.5em;
+                    border-bottom: 1px solid #eee;
+                    cursor: pointer;
+                }
+                .search-result-item:hover {
+                    background-color: #f0f0f0;
+                }
+                .hidden {
+                    display: none;
+                }
+            </style>` : ''}`;
 
-        ${!isLoginPage ? `
-        <div id="profile-dropdown" class="profile-dropdown hidden">
-            <ul>
-                <li id="logout-button">Log out</li>
-            </ul>
-        </div>` : ''}
-
-        <style>
-            .profile-dropdown {
-            color: var(--night-view-green);
-                position: absolute;
-                top: 120px;
-                right: 20px;
-                border: 1px solid #ddd;
-                border-radius: 10px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                width: 8vw;
-                z-index: 999;
-            }
-            .profile-dropdown ul {
-                list-style: none;
-                margin: 0;
-                padding: 10px 0;
-            }
-            .profile-dropdown li {
-                padding: 10px 20px;
-                cursor: pointer;
-                font-weight: bold;
-                font-size: large;
-            }
-            .profile-dropdown li:hover {
-                background-color: var(--night-view-purple);
-            }
-            .hidden {
-                display: none;
-            }
-        </style>
-    `;
-
-        const clubSelector = this.querySelector('#club-selector');
-        if (clubSelector) {
+        if (!isLoginPage) {
+            // Attach event listeners immediately
+            const clubSelector = this.querySelector('#club-selector');
             clubSelector.addEventListener('change', (event) => {
                 this.selectedClubId = event.target.value;
                 this.populateUserSelector(this.selectedClubId);
             });
-        }
 
-        if (!isLoginPage) {
             const profilePic = this.querySelector('#profile-pic');
             const dropdown = this.querySelector('#profile-dropdown');
             const logoutButton = this.querySelector('#logout-button');
+            const modal = this.querySelector('#add-staff-modal');
+            const closeButton = this.querySelector('.close-button');
+            const searchInput = this.querySelector('#staff-search');
 
-            profilePic?.addEventListener('click', (e) => {
+            profilePic.addEventListener('click', (e) => {
                 e.stopPropagation();
                 dropdown.classList.toggle('hidden');
             });
@@ -143,27 +182,53 @@ class NavBar extends HTMLElement {
                 }
             });
 
-            logoutButton?.addEventListener('click', () => {
+            logoutButton.addEventListener('click', () => {
                 clearSession();
                 window.location.href = '/NightVieweditclubpage/html/login.html';
             });
+
+            closeButton.addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
+
+            searchInput.addEventListener('input', (e) => {
+                this.searchUsers(e.target.value);
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                }
+            });
+
+            // Populate dynamic content asynchronously
+            const initializeNavbar = async () => {
+                const uid = getSession().uid;
+                await this.populateClubSelector(uid);
+                this.updateProfilePicture(uid); // Non-blocking
+                this.updateNavbarVisibility(isLoginPage);
+            };
+
+            if (isDataInitialized()) {
+                initializeNavbar();
+            } else {
+                window.addEventListener('dataInitialized', initializeNavbar, { once: true });
+            }
         }
     }
-
-
 
     async populateClubSelector(uid) {
         const selector = this.querySelector('#club-selector');
         let firstValidClubId = null;
 
-        // Wait for cache if it’s not ready
-        if (getClubs().length === 0) {
+        if (getAllVisibleLocations().length === 0) {
+            //TODO Put logic here.
             await new Promise(resolve => window.addEventListener('dataInitialized', resolve, {once: true}));
         }
 
-        const validClubs = getClubs().map(club => ({
+        const validClubs = getAllVisibleLocations().map(club => ({
             id: club.id,
-            name: toTitleCase(club.displayName || club.name || club.id),
+            name: club.displayName || toTitleCase(club.name || club.id),
             rawData: club
         }));
 
@@ -182,14 +247,14 @@ class NavBar extends HTMLElement {
             if (!firstValidClubId) firstValidClubId = id;
         });
 
-        const storedClubId = sessionStorage.getItem('selectedClubId');
+        const storedClubId = getClubSession();
         if (storedClubId && selector.querySelector(`option[value="${storedClubId}"]`)) {
             selector.value = storedClubId;
             this.selectedClubId = storedClubId;
             this.populateUserSelector(this.selectedClubId);
         } else if (firstValidClubId) {
             selector.value = firstValidClubId;
-            sessionStorage.setItem('selectedClubId', firstValidClubId);
+            saveClubSession(firstValidClubId);
             this.selectedClubId = firstValidClubId;
             this.populateUserSelector(this.selectedClubId);
             window.dispatchEvent(new Event('clubChanged'));
@@ -203,121 +268,248 @@ class NavBar extends HTMLElement {
     }
 
     async populateUserSelector(clubId) {
+        if (window.location.pathname.includes('login.html')) return;
+
         const userSelector = this.querySelector('#user-selector');
-        userSelector.innerHTML = '';
+        userSelector.innerHTML = '<option disabled selected>Staff</option>';
 
-        if (['admin', 'owner'].includes(this.userRole)) {
-            const addUserOption = document.createElement('option');
-            addUserOption.value = 'add-user';
-            addUserOption.textContent = '➕ Add Staff';
-            userSelector.appendChild(addUserOption);
-        }
+        if (!['admin', 'owner'].includes(this.userRole)) return;
 
-        if (clubId && clubId !== 'add-new') {
-            const club = getClubs().find(c => c.id === clubId);
-            const owners = club?.owners || [];
-            const staff = club?.staff || [];
+        const addUserOption = document.createElement('option');
+        addUserOption.value = 'add-staff';
+        addUserOption.textContent = '➕ Add Staff';
+        userSelector.appendChild(addUserOption);
 
-            const users = [...new Set([...owners, ...staff])]; // Unique user ids
+        if (!clubId || clubId === 'add-new') return;
 
-            if (users.length > 0) {
-                if (!userCache) {
-                    await new Promise(resolve => window.addEventListener('dataInitialized', resolve, {once: true}));
-                }
-                const clubUsers = userCache.filter(user => users.includes(user.id));
-                clubUsers.forEach(user => {
-                    const opt = document.createElement('option');
-                    opt.value = user.id;
-                    opt.textContent = user.name || user.id;
-                    userSelector.appendChild(opt);
-                });
-            }
-        }
+        const club = getAllVisibleLocations().find(c => c.id === clubId);
+        if (!club) return;
 
-        userSelector.addEventListener('change', (event) => {
-            if (event.target.value === 'add-user') {
-                this.addStaffToClub(clubId);
-            }
-            userSelector.value = 'Staff'; // Reset after action
+        const ownerIds = new Set(club.owners || []);
+        const staffIds = new Set(club.staff || []);
+
+        const users = (window.userCache || []).filter(user =>
+            ownerIds.has(user.id) || staffIds.has(user.id)
+        );
+
+        users.sort((a, b) => {
+            const aIsOwner = ownerIds.has(a.id);
+            const bIsOwner = ownerIds.has(b.id);
+            if (aIsOwner && !bIsOwner) return -1;
+            if (!aIsOwner && bIsOwner) return 1;
+            return a.email.localeCompare(b.email);
         });
+
+        users.forEach(user => {
+            const opt = document.createElement('option');
+            opt.value = user.id;
+            const label = ownerIds.has(user.id) ? '👑 Owner' : '👤 Staff';
+            opt.textContent = `${user.email} (${label}${user.name ? ` – ${user.name}` : ''})`;
+            userSelector.appendChild(opt);
+        });
+
+        userSelector.selectedIndex = 0;
+
+        if (!userSelector.dataset.listenerAttached) {
+            userSelector.addEventListener('change', (event) => {
+                if (event.target.value === 'add-staff') {
+                    this.showAddStaffModal();
+                    setTimeout(() => userSelector.selectedIndex = 0, 0);
+                }
+            });
+            userSelector.dataset.listenerAttached = "true";
+        }
     }
 
-    async addStaffToClub(clubId) {
-        const userEmail = prompt("Enter the email of the user to add:");
-        if (!userEmail) return;
+    showAddStaffModal() {
+        console.log('showAddStaffModal called. Club ID:', this.selectedClubId);
+        const clubId = this.selectedClubId;
+        if (!clubId || clubId === 'add-new') {
+            showAlert({
+                title: 'No Location Selected',
+                text: 'Please select a club first.',
+                icon: swalTypes.warning
+            });
+            return;
+        }
+
+        const modal = this.querySelector('#add-staff-modal');
+        const searchInput = this.querySelector('#staff-search');
+        const searchResults = this.querySelector('#search-results');
+
+        searchInput.value = '';
+        searchResults.innerHTML = '';
+        modal.classList.remove('hidden');
+        searchInput.focus();
+    }
+
+    async searchUsers(query) {
+        const searchResults = this.querySelector('#search-results');
+        searchResults.innerHTML = '';
+        const clubId = this.selectedClubId;
+
+        if (!query.trim()) {
+            searchResults.innerHTML = '<div class="info-message">Start typing to search for staff members</div>';
+            return;
+        }
+
+        if (!clubId) return;
 
         try {
-            // Ensure userCache is loaded
             if (!window.userCache) {
-                await new Promise(resolve => window.addEventListener('dataInitialized', resolve, {once: true}));
-            }
-
-            // Find the user by email
-            const user = window.userCache.find(u => u.email?.toLowerCase() === userEmail.toLowerCase());
-
-            if (!user) {
-                alert("❌ No user found with that email.");
+                console.error("User cache not loaded");
                 return;
             }
 
-            const userId = user.id;
-            const club = getClubs().find(c => c.id === clubId);
+            const club = getAllVisibleLocations().find(c => c.id === clubId);
+            const existingStaff = new Set([...(club?.staff || []), ...(club?.owners || [])]);
 
-            if (!club) {
-                alert("❌ Club not found.");
+            searchResults.innerHTML = '<div class="info-message">Searching...</div>';
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            const matchingUsers = window.userCache.filter(user => {
+                const emailMatch = user.email?.toLowerCase().includes(query.toLowerCase());
+                const exactMatch = user.email?.toLowerCase() === query.toLowerCase();
+                return emailMatch && !existingStaff.has(user.id) && exactMatch;
+            });
+
+            searchResults.innerHTML = '';
+
+            if (query.length < 3) {
+                searchResults.innerHTML = '<div class="warning-message">Type at least 3 characters to search</div>';
                 return;
             }
 
-            const staff = Array.isArray(club.staff) ? club.staff : [];
-
-            if (staff.includes(userId)) {
-                alert("⚠️ User is already a staff member.");
+            if (matchingUsers.length === 0) {
+                searchResults.innerHTML = `
+                <div class="error-message">
+                    No users found for "${query}"
+                    <div class="suggestion">Check for typos or try a different email</div>
+                </div>`;
                 return;
             }
 
-            // Add user to staff
-            staff.push(userId);
+            const countBadge = document.createElement('div');
+            countBadge.className = 'result-count';
+            countBadge.textContent = `${matchingUsers.length} ${matchingUsers.length === 1 ? 'match' : 'matches'} found`;
+            searchResults.appendChild(countBadge);
 
-            // Update Firestore
-            const clubDocRef = doc(db, "club_data", clubId);
-            await updateDoc(clubDocRef, { staff });
+            matchingUsers.forEach(user => {
+                const div = document.createElement('div');
+                div.className = 'search-result-item';
+                const email = user.email;
+                const matchIndex = email.toLowerCase().indexOf(query.toLowerCase());
+                const beforeMatch = email.slice(0, matchIndex);
+                const matchText = email.slice(matchIndex, matchIndex + query.length);
+                const afterMatch = email.slice(matchIndex + query.length);
 
-            // Update local data
-            club.staff = staff;
-
-            alert(`✅ Successfully added ${user.email} as staff.`);
-
-            // Refresh the staff selector
-            await this.populateUserSelector(clubId);
-
+                div.innerHTML = `
+                <div class="user-email">
+                    ${beforeMatch}<strong>${matchText}</strong>${afterMatch}
+                </div>
+                <div class="user-name">${user.name || 'No name provided'}</div>
+            `;
+                div.addEventListener('click', () => this.addStaffToClub(user));
+                searchResults.appendChild(div);
+            });
         } catch (error) {
-            console.error("❌ Error adding staff:", error);
-            alert("An error occurred while adding staff. Try again.");
+            console.error("Search error:", error);
+            searchResults.innerHTML = '<div class="error-message">Error searching users. Please try again.</div>';
+        }
+    }
+
+    createStatusMessage(text, type = 'info') {
+        const message = document.createElement('div');
+        message.className = `status-message ${type}-message`;
+        message.innerHTML = `
+            <span class="status-icon">${this.getStatusIcon(type)}</span>
+            ${text}
+        `;
+        return message;
+    }
+
+    getStatusIcon(type) {
+        const icons = {
+            info: 'ℹ️',
+            warning: '⚠️',
+            error: '❌',
+            success: '✅'
+        };
+        return icons[type] || '';
+    }
+
+    async addStaffToClub(user) {
+        const clubId = this.selectedClubId;
+        if (!clubId) {
+            showAlert({
+                title: 'No Location Selected',
+                text: 'Please select a club first.',
+                icon: swalTypes.warning
+            });
+
+            return;
+        }
+
+        try {
+            const clubDocRef = doc(db, databaseCollections.clubData, clubId);
+            await updateDoc(clubDocRef, {
+                staff: arrayUnion(user.id)
+            });
+
+            const club = getAllVisibleLocations().find(c => c.id === clubId);
+            if (club) {
+                club.staff = [...(club.staff || []), user.id];
+            }
+
+            showAlert({
+                title: 'Staff Added!',
+                text: `Successfully added ${user.email} as staff!`,
+                icon: swalTypes.success
+            });
+            this.querySelector('#add-staff-modal').classList.add('hidden');
+            this.populateUserSelector(clubId);
+        } catch (error) {
+            console.error("Add staff error:", error);
+            showAlert({
+                title: 'Add Staff Failed',
+                text: 'Failed to add staff member.',
+                icon: swalTypes.error
+            });
         }
     }
 
     async updateProfilePicture(uid) {
+        const cachedUrl = sessionStorage.getItem(`profilePic_${uid}`); // TODO Move to session
+        const pic = this.querySelector('#profile-pic');
+        if (cachedUrl && pic) {
+            pic.src = cachedUrl;
+            return;
+        }
+
         const storage = getStorage();
         const imageRef = ref(storage, `pb/${uid}.jpg`);
         try {
             const url = await getDownloadURL(imageRef);
-            const pic = this.querySelector('#profile-pic');
-            if (pic) pic.src = url;
-        } catch {
-            console.log("Using default profile picture.");
+            if (pic) {
+                pic.src = url;
+                sessionStorage.setItem(`profilePic_${uid}`, url); // Cache the URL //TODO move to session.
+            }
+        } catch (e) {
+            console.log("Using default profile picture: " + e);
         }
     }
-
 
     updateNavbarVisibility(isLoginPage) {
         const adminLink = this.querySelector('.admin-link');
         const profilePicItem = this.querySelector('.profile-pic-item');
 
-        if (adminLink) adminLink.style.display = this.userRole === 'admin' && !isLoginPage ? 'list-item' : 'none';
-        if (profilePicItem) profilePicItem.style.display = this.user && !isLoginPage ? 'list-item' : 'none';
+        if (adminLink) adminLink.style.display = getSession().role === 'admin' && !isLoginPage ? 'list-item' : 'none';
+        if (profilePicItem) profilePicItem.style.display = !isLoginPage ? 'list-item' : 'none';
+    }
+
+    get ready() {
+        return this._ready;
     }
 }
-
-
 
 customElements.define('nav-bar', NavBar);

@@ -17,6 +17,9 @@
     --color-cool-blue: #2196f3;
     --color-purple: #9391c9;
 
+    /*Swal colors*/
+    --swal-warning: #F8BB86;
+
     /* Status Colors */
     /*const redAccent = Colors.redAccent;*/
     --color-red: #CB4C4E;
@@ -118,9 +121,22 @@ textarea::placeholder{
     color: var(--color-white);
 }
 
+.blackbackground{
+    background-color: var(--color-black);
+}
+
+.red {
+    color: var(--color-red);
+}
+
+.cool-blue{
+    color: var(--color-cool-blue);
+}
+
 .input {
     background-color: var(--color-black);
 }
+
 
 /* Responsive Adjustments TODO */
 /*@media (max-width: 600px) {*/

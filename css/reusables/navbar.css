@@ -137,3 +137,65 @@ option[value="add-user"] {
     margin: 0;
     padding: 0;
 }
+
+/* Search Results Status Messages */
+.status-message {
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.info-message {
+    background: #e3f2fd;
+    color: #1976d2;
+    border: 1px solid #90caf9;
+}
+
+.warning-message {
+    background: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffb74d;
+}
+
+.error-message {
+    background: #ffebee;
+    color: #d32f2f;
+    border: 1px solid #ef9a9a;
+}
+
+.suggestion {
+    font-size: 0.9em;
+    margin-top: 0.5rem;
+    color: inherit;
+    opacity: 0.8;
+}
+
+.result-count {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.user-email {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.user-name {
+    font-size: 0.9em;
+    color: #7f8c8d;
+    margin-top: 0.3rem;
+}
+
+.search-result-item:hover .user-email {
+    color: white;
+}
+
+.search-result-item:hover .user-name {
+    color: rgba(255,255,255,0.8);
+}
