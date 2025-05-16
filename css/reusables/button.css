@@ -60,7 +60,7 @@
 }
 
 .button-disabled {
-    background-color: var(--color-dark-gray);
+    /* background-color: var(--color-dark-gray); */
     cursor: not-allowed;
     opacity: 0.8;
 }

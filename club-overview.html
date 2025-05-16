@@ -112,46 +112,49 @@
                     </div>
                 </details>
 
-                <!-- Location Section -->
-                <details>
-                    <summary>Location</summary>
-                    <div class="field grid field-grid-location">
-                        <div class="field-item">
-                            <label for="lat">Entrance</label>
-<!--                            <input type="number" step="any" id="entrance" placeholder="Entrance" min="-180" max="180">-->
-                            <input type="number" step="any" id="lat" placeholder="lattitude" min="-90" max="90">
-                        </div>
-                        <div class="field-item">
-                            <label for="lon">Longitude</label>
-                            <input type="number" step="any" id="lon" placeholder="longitude" min="-180" max="180">
-                        </div>
-                        <div id="corners-container" class="field-grid field-grid-corners">
-                            <div class="field-item">
-                                <label for="corner1-lat">Corner 1 (lat,lon)</label>
-<!--                                <input type="number" step="any" id="corner1" placeholder="Corner 1 location" min="-180" max="180">-->
-                                <input type="number" step="any" id="corner1-lat" placeholder="Latitude" min="-90" max="90">
-                                <input type="number" step="any" id="corner1-lon" placeholder="Longitude" min="-180" max="180">
-                            </div>
-                            <div class="field-item">
-                                <label for="corner2-lat">Corner 2 (lat,lon)</label>
-                                <input type="number" step="any" id="corner2-lat" placeholder="Latitude" min="-90" max="90">
-                                <input type="number" step="any" id="corner2-lon" placeholder="Longitude" min="-180" max="180">
-
-                            </div>
-                            <div class="field-item">
-                                <label for="corner3-lat">Corner 3 (lat,lon)</label>
-                                <input type="number" step="any" id="corner3-lat" placeholder="Latitude" min="-90" max="90">
-                                <input type="number" step="any" id="corner3-lon" placeholder="Longitude" min="-180" max="180">
-
-                            </div>
-                            <div class="field-item">
-                                <label for="corner4-lat">Corner 4 (lat,lon)</label>
-                                <input type="number" step="any" id="corner4-lat" placeholder="Latitude" min="-90" max="90">
-                                <input type="number" step="any" id="corner4-lon" placeholder="Longitude" min="-180" max="180">
-                            </div>
-                        </div>
+               <!-- Location Section -->
+               <details>
+                <summary>Location</summary>
+                <div class="field grid field-grid-location">
+              
+                  <div class="field-item">
+                    <label for="entrance">
+                      Entrance <small>(lat, lon)</small>
+                    </label>
+                    <input
+                      type="text"
+                      id="entrance"
+                      name="entrance"
+                      placeholder="e.g., 55.735244, 9.122488"
+                      pattern="^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$"
+                      title="Format: latitude, longitude"
+                    >
+                  </div>
+              
+                  <div id="corners-container" class="field-grid field-grid-corners">
+                    <div class="field-item">
+                      <label for="corner1">Corner 1 <small>(lat, lon)</small></label>
+                      <input type="text" id="corner1" placeholder="e.g., 55.735619, 9.121765" pattern="^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$">
                     </div>
-                </details>
+                    <div class="field-item">
+                      <label for="corner2">Corner 2 <small>(lat, lon)</small></label>
+                      <input type="text" id="corner2" placeholder="e.g., 55.735661, 9.123267" pattern="^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$">
+                    </div>
+                    <div class="field-item">
+                      <label for="corner3">Corner 3 <small>(lat, lon)</small></label>
+                      <input type="text" id="corner3" placeholder="e.g., 55.734837, 9.123389" pattern="^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$">
+                    </div>
+                    <div class="field-item">
+                      <label for="corner4">Corner 4 <small>(lat, lon)</small></label>
+                      <input type="text" id="corner4" placeholder="e.g., 55.734757, 9.121765" pattern="^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$">
+                    </div>
+                    <button type="button" id="addCornerBtn" class="button button-add-corner">➕ Add Corner</button>
+                  </div>
+              
+                </div>
+              </details>
+              
+  
             </div>
 
             <div class="middle-section">

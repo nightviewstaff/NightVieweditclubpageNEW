@@ -250,6 +250,14 @@ export function getNextDefaultPartyDay(includeThursday = false) {
     return fallback;
 }
 
+export function formatGeoCoord(num) {
+    const str = num.toString();
+    const parts = str.split(".");
+    if (parts.length === 1) return `${str}.000000`;
+    const decimals = parts[1].length;
+    if (decimals < 6) return `${str}${"0".repeat(6 - decimals)}`;
+    return str;
+  }  
 
 
 
