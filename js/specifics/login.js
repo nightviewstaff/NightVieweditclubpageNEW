@@ -1,12 +1,14 @@
 // login.js
 
-import {loginWithEmailPassword} from "../api/firebase-api.js";
-import {saveSession} from "../utilities/session.js";
-import {showAlert} from "../utilities/custom-alert.js";
-import {swalTypes, swalPositions} from "../utilities/constants.js";
+import {loginWithEmailPassword} from "/js/api/firebase-api.js";
+import {saveSession} from "/js/utilities/session.js";
+import {showAlert} from "/js/utilities/custom-alert.js";
+import {swalPositions} from "/js/utilities/constants.js";
+import {hideLoading, showLoading} from "/js/utilities/loading-indicator.js";
 
 
 document.addEventListener('DOMContentLoaded', () => {
+    // showLoading(); // Test
     const form = document.getElementById('login-form');
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
@@ -22,17 +24,28 @@ document.addEventListener('DOMContentLoaded', () => {
     emailInput.addEventListener('input', checkInputs);
     passwordInput.addEventListener('input', checkInputs);
 
+    [emailInput, passwordInput].forEach(input => {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent default enter behavior
+                if (!submitButton.disabled) {
+                    form.requestSubmit(); // Triggers form's submit event
+                }
+            }
+        });
+    });
+
     form.addEventListener('submit', async (e) => {
+        showLoading();
         e.preventDefault();
         submitButton.disabled = true;
-
         const email = emailInput.value.trim();
         const password = passwordInput.value.trim();
         try {
             const {user, role} = await loginWithEmailPassword(email, password);
             saveSession(user.uid, role);
             console.log("✅ Logged in as:", user.email);
-            window.location.href = `${window.location.origin}/NightVieweditclubpage/html/club-overview.html`;
+            window.location.href = `${window.location.origin}/club-overview.html`;
         } catch (err) {
             showAlert({
                 title: 'Invalid login',
@@ -43,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(err)
             submitButton.disabled = false;
         }
+        hideLoading();
     });
 });
 

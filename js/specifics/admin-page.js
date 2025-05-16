@@ -6,12 +6,12 @@ import {
     doc,
     getDocs,
     serverTimestamp,
-} from "../api/firebase-api.js";
-import { databaseCollections, swalTypes } from "../utilities/constants.js";
-import { getSession } from "../utilities/session.js";
-import { toTitleCase } from "../utilities/utility.js";
-import { showAlert } from "../utilities/custom-alert.js";
-import {hideLoading, showLoading} from "../utilities/loading-indicator.js";
+} from "/js/api/firebase-api.js";
+import { databaseCollections, swalTypes } from "/js/utilities/constants.js";
+import { getSession } from "/js/utilities/session.js";
+import { toTitleCase } from "/js/utilities/utility.js";
+import { showAlert } from "/js/utilities/custom-alert.js";
+import {hideLoading, showLoading} from "/js/utilities/loading-indicator.js";
 
 let clubs = [];
 let visibleCount = 20;

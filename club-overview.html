@@ -3,29 +3,32 @@
 <head>
     <meta charset="UTF-8"/>
     <title>Location Overview</title>
-    <link rel="stylesheet" href="../css/reusables/basic.css">
-    <link rel="stylesheet" href="../css/reusables/navbar.css">
-    <link rel="stylesheet" href="../css/reusables/button.css">
-    <link rel="stylesheet" href="../css/reusables/popup.css">
-    <link rel="stylesheet" href="../css/reusables/container.css">
-    <link rel="stylesheet" href="../css/reusables/image.css">
-    <link rel="stylesheet" href="../css/reusables/popup.css">
-    <link rel="stylesheet" href="../css/reusables/alert.css">
 
-    <link rel="stylesheet" href="../css/specifics/iphone_app_display.css">
-    <link rel="stylesheet" href="../css/specifics/app_club_header.css">
-    <link rel="stylesheet" href="../css/specifics/club-overview.css">
+    <link rel="icon" href="/favicon.ico">
+
+    <link rel="stylesheet" href="/css/reusables/basic.css">
+    <link rel="stylesheet" href="/css/reusables/navbar.css">
+    <link rel="stylesheet" href="/css/reusables/button.css">
+    <link rel="stylesheet" href="/css/reusables/popup.css">
+    <link rel="stylesheet" href="/css/reusables/container.css">
+    <link rel="stylesheet" href="/css/reusables/image.css">
+    <link rel="stylesheet" href="/css/reusables/popup.css">
+    <link rel="stylesheet" href="/css/reusables/alert.css">
+
+    <link rel="stylesheet" href="/css/specifics/iphone_app_display.css">
+    <link rel="stylesheet" href="/css/specifics/app_club_header.css">
+    <link rel="stylesheet" href="/css/specifics/club-overview.css">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-    <script type="module" src="../js/utilities/init.js"></script>
+    <script type="module" src="/js/utilities/init.js"></script>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <script type="module" src="../js/utilities/navbar.js"></script>
-    <script type="module" src="../js/utilities/constants.js"></script>
+    <script type="module" src="/js/utilities/navbar.js"></script>
+    <script type="module" src="/js/utilities/constants.js"></script>
 
-    <script type="module" src="../js/specifics/club-overview.js"></script>
-    <script type="module" src="../js/specifics/iphone-display-updater.js"></script>
+    <script type="module" src="/js/specifics/club-overview.js"></script>
+    <script type="module" src="/js/specifics/iphone-display-updater.js"></script>
 
     <style>
         .tag-popup {
@@ -114,7 +117,8 @@
                     <summary>Location</summary>
                     <div class="field grid field-grid-location">
                         <div class="field-item">
-                            <label for="lat">Latitude</label>
+                            <label for="lat">Entrance</label>
+<!--                            <input type="number" step="any" id="entrance" placeholder="Entrance" min="-180" max="180">-->
                             <input type="number" step="any" id="lat" placeholder="lattitude" min="-90" max="90">
                         </div>
                         <div class="field-item">
@@ -124,6 +128,7 @@
                         <div id="corners-container" class="field-grid field-grid-corners">
                             <div class="field-item">
                                 <label for="corner1-lat">Corner 1 (lat,lon)</label>
+<!--                                <input type="number" step="any" id="corner1" placeholder="Corner 1 location" min="-180" max="180">-->
                                 <input type="number" step="any" id="corner1-lat" placeholder="Latitude" min="-90" max="90">
                                 <input type="number" step="any" id="corner1-lon" placeholder="Longitude" min="-180" max="180">
                             </div>

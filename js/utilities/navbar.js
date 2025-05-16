@@ -8,31 +8,31 @@ import {
     getStorage,
     ref,
     updateDoc
-} from '../api/firebase-api.js';
-import {checkSession, clearSession, getClubSession, getSession, saveClubSession} from "./session.js";
-import {getAllVisibleLocations, isDataInitialized} from "./global.js";
-import {toTitleCase} from "./utility.js";
-import {databaseCollections, actualRoles} from "./constants.js";
-import {init} from "./init.js";
+} from '/js/api/firebase-api.js';
+import {checkSession, clearSession, getClubSession, getSession, saveClubSession} from "/js/utilities/session.js";
+import {getAllVisibleLocations, isDataInitialized} from "/js/utilities/global.js";
+import {toTitleCase} from "/js/utilities/utility.js";
+import {databaseCollections, actualRoles} from "/js/utilities/constants.js";
+import {init} from "/js/utilities/init.js";
 
 class NavBar extends HTMLElement {
     connectedCallback() {
-        const isLoginPage = window.location.pathname.includes('login.html');
+        const isLoginPage = window.location.pathname.includes('index.html');
 
         // Render navbar structure immediately
         this.innerHTML = `
             <nav>
                 <div class="navbar-logo">
                     <a href="https://night-view.dk/" target="_blank">
-                        <img id="navbar-logo" src="../../images/nightview/logo_text.png" alt="Logo">
+                        <img id="navbar-logo" src="/images/nightview/logo_text.png" alt="Logo">
                     </a>
                 </div>
                 ${!isLoginPage ? `
                 <ul class="anchor-container">
-                    <li><a href="/NightVieweditclubpage/html/club-overview.html">Location Data</a></li>
-                    <li><a href="/NightVieweditclubpage/html/notifications.html">Notifications</a></li>
-                    <li><a href="/NightVieweditclubpage/html/user-data.html">User Data</a></li>
-                    <li class="admin-link" style="display:none;"><a href="/NightVieweditclubpage/html/admin-page.html">Admin</a></li>
+                    <li><a href="/club-overview.html">Location Data</a></li>
+                    <li><a href="/notifications.html">Notifications</a></li>
+                    <li><a href="/user-data.html">User Data</a></li>
+                    <li class="admin-link" style="display:none;"><a href="/admin-page.html">Admin</a></li>
                 </ul>
                 <ul class="selector-container">
                     <li>
@@ -50,10 +50,10 @@ class NavBar extends HTMLElement {
                     <ul id="navbar-right-column">
                         ${!isLoginPage ? `
                         <li class="profile-pic-item" style="display:none;">
-                            <img id="profile-pic" src="../../images/users/default_user_pb.jpg" alt="Profile Picture">
+                            <img id="profile-pic" src="/images/users/default_user_pb.jpg" alt="Profile Picture">
                         </li>` : ''}
                         <li>
-                            <img id="language-flag" src="../../images/flags/uk.png" alt="Language" class="lang-flag">
+                            <img id="language-flag" src="/images/flags/uk.png" alt="Language" class="lang-flag">
                         </li>
                     </ul>
                 </div>
@@ -184,7 +184,7 @@ class NavBar extends HTMLElement {
 
             logoutButton.addEventListener('click', () => {
                 clearSession();
-                window.location.href = '/NightVieweditclubpage/html/login.html';
+                window.location.href = '/index.html';
             });
 
             closeButton.addEventListener('click', () => {
@@ -268,7 +268,7 @@ class NavBar extends HTMLElement {
     }
 
     async populateUserSelector(clubId) {
-        if (window.location.pathname.includes('login.html')) return;
+        if (window.location.pathname.includes('index.html')) return;
 
         const userSelector = this.querySelector('#user-selector');
         userSelector.innerHTML = '<option disabled selected>Staff</option>';

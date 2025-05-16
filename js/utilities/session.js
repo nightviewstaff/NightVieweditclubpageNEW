@@ -24,7 +24,6 @@ export function getAllLocations() {
 export function getSession() {
     const uid = sessionStorage.getItem('userUid');
     const role = sessionStorage.getItem('userRole');
-    console.log(`Session: ${uid}, ${role}`);
     return uid && role ? { uid, role } : null;
 }
 
@@ -41,7 +40,7 @@ export function getClubSession() {
 export function checkSession() {
     const session = getSession();
     if (!session) {
-        window.location.href = '/NightVieweditclubpage/html/login.html';
+        window.location.href = '/index.html';
         return false;
     }
     return true;

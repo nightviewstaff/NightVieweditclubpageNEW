@@ -12,20 +12,11 @@
     /* Primary Colors */
     --night-view-green: #00AD89;
     --night-view-purple: #591C61;
-    --color-light-blue: #02BDFB;
-    --color-medium-blue: #017FB5;
     --color-cool-blue: #2196f3;
-    --color-purple: #9391c9;
-
-    /*Swal colors*/
-    --swal-warning: #F8BB86;
 
     /* Status Colors */
     /*const redAccent = Colors.redAccent;*/
     --color-red: #CB4C4E;
-    --color-dark-red: #e04444;
-    --color-green: #5ca351;
-    --color-dark-green: #2c6721;
 
     /* Font and Spacing */
     --font-primary: 'Inter', sans-serif;

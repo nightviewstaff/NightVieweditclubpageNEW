@@ -1,6 +1,7 @@
 // iphone-display-updater.js
-import {getClubSession} from "../utilities/session.js";
-import { getOfferImageUrl,mainOfferImgUrl } from "./club-overview.js";
+
+import {getClubSession} from "/js/utilities/session.js";
+import { getOfferImageUrl,mainOfferImgUrl } from "/js/specifics/club-overview.js";
 
 export async function updateIPhoneDisplay(data) {
     const {
@@ -55,8 +56,8 @@ export async function updateIPhoneDisplay(data) {
 
         // Type Image
         iphoneContainer.querySelector("#club-type-img").src = type
-            ? `../images/clubtype/${type}_icon.png`
-            : "../images/clubtype/bar_icon.png";
+            ? `/images/clubtype/${type}_icon.png`
+            : "/images/clubtype/bar_icon.png";
 
         // Age Restriction
         iphoneContainer.querySelector(".age-restriction").textContent =

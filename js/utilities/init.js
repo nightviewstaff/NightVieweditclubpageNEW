@@ -1,4 +1,4 @@
-import {fetchRelevantClubsByIds, fetchUsersByIds} from '../api/firebase-api.js';
+import {fetchRelevantClubsByIds, fetchUsersByIds} from '/js/api/firebase-api.js';
 import {
     getAllVisibleLocations,
     isDataInitialized,
@@ -6,13 +6,13 @@ import {
     setOwnerUsers,
     setStaffUsers,
     setUsersWithFavorites
-} from './global.js';
-import {checkSession} from "./session.js";
+} from '/js/utilities/global.js';
+import {checkSession} from "/js/utilities/session.js";
 
 //TODO add loader while init.
 
 export async function init() {
-    const isLoginPage = window.location.pathname.includes('login.html');
+    const isLoginPage = window.location.pathname.includes('index.html');
     if (!isLoginPage) {
         if (!checkSession()) return;
         console.log("🔄 Initializing global data...");
@@ -54,7 +54,7 @@ export async function init() {
 
 // Auto-run init for non-login pages
 (function () {
-    if (!window.location.pathname.includes('login.html')) {
+    if (!window.location.pathname.includes('index.html')) {
         init();
     }
 })();

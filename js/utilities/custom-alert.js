@@ -1,6 +1,5 @@
 import Swal from 'https://cdn.jsdelivr.net/npm/sweetalert2@11/+esm';
-import {swalPositions, swalTypes} from "./constants.js";
-import {formatFullDateTime} from "./utility.js";
+import {swalPositions, swalTypes} from "/js/utilities/constants.js";
 
 const defaultPopupClass = 'blackbackground';
 const defaultTextClass = 'white';

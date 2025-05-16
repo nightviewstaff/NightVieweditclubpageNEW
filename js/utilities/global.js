@@ -1,6 +1,6 @@
 // global.js
 
-import {getClubSession, getSession} from "./session.js";
+import {getClubSession, getSession} from "/js/utilities/session.js";
 
 // In-memory caches
 let allVisibleLocations = null;

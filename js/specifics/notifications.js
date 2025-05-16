@@ -1,23 +1,23 @@
 // notifications.js
 
-import {getClubSession, getSession} from "../utilities/session.js";
-import {getAllVisibleLocations} from '../utilities/global.js';
+import {getClubSession, getSession} from "/js/utilities/session.js";
+import {getAllVisibleLocations} from '/js/utilities/global.js';
 import {
     calculateUserAge, formatDayDifference,
     formatFiltersReadable,
     formatFullDateTime, getNextDefaultPartyDay,
     getUserGender,
     getUserNationality
-} from "../utilities/utility.js";
+} from "/js/utilities/utility.js";
 import {
     deleteNotificationById,
     fetchScheduledNotificationsForClub,
     fetchUserById,
     fetchUsersByIds,
     uploadNotification
-} from "../api/firebase-api.js";
-import {swalTypes} from "../utilities/constants.js";
-import {showAlert} from "../utilities/custom-alert.js";
+} from "/js/api/firebase-api.js";
+import {swalTypes} from "/js/utilities/constants.js";
+import {showAlert} from "/js/utilities/custom-alert.js";
 
 const genderOptions = ['F', 'M'];
 const nationalityOptions = ['Danish', 'International'];

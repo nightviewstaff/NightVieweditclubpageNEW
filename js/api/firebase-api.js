@@ -36,11 +36,11 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.6.7/firebase-auth.js";
 
 // Utility Imports
-import {convertToWebP} from "../utilities/utility.js";
-import {databaseCollections} from "../utilities/constants.js";
-import {getAllLocations, getSession, getUser, saveAllLocationsSession, saveUserSession} from "../utilities/session.js";
-import {showAlert} from "../utilities/custom-alert.js";
-import {getAllVisibleLocations, setAllVisibleLocations} from "../utilities/global.js";
+import {convertToWebP} from "/js/utilities/utility.js";
+import {databaseCollections} from "/js/utilities/constants.js";
+import {getAllLocations, getSession, getUser, saveAllLocationsSession, saveUserSession} from "/js/utilities/session.js";
+import {showAlert} from "/js/utilities/custom-alert.js";
+import {getAllVisibleLocations, setAllVisibleLocations} from "/js/utilities/global.js";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -119,10 +119,6 @@ async function fetchUserRole(uid) {
 export async function fetchRelevantClubsByIds() {
     const session = getSession();
     const user = getUser();
-    console.log(user)
-    console.log("Owned clubs:", user.owned_clubs);
-    console.log("Staff clubs:", user.staff_clubs);
-
 
     if (session.role === 'admin') {
         return await fetchAllLocations();
@@ -172,6 +168,31 @@ export async function fetchAllLocations() {
         return [];
     }
 }
+
+export async function updateNewLocations() {
+    try {
+        const locationsSnapshot = await getDocs(collection(db, databaseCollections.clubData));
+        const existingIds = new Set(clubDataCache.map((doc) => doc.id));
+
+        const newDocs = locationsSnapshot.docs
+            .filter((doc) => !existingIds.has(doc.id))
+            .map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+
+        if (newDocs.length) {
+            clubDataCache = [...clubDataCache, ...newDocs];
+            saveAllLocationsSession(clubDataCache);
+        }
+
+        return clubDataCache;
+    } catch (error) {
+        console.error("❌ Error updating locations:", error);
+        return clubDataCache;
+    }
+}
+
 
 export async function fetchUsersByIds(ids = []) {
     if (!Array.isArray(ids) || ids.length === 0) return [];
