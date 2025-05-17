@@ -121,7 +121,7 @@ export async function fetchRelevantClubsByIds() {
     const user = getUser();
 
     if (session.role === 'admin') {
-        return await fetchAllLocations();
+        return await fetchAllVisibleClubsForAdmin();
     }
 
     const authorizedIds = new Set([
@@ -151,23 +151,46 @@ export async function fetchRelevantClubsByIds() {
     return results.filter(Boolean);
 }
 
-export async function fetchAllLocations() {
-    if (clubDataCache?.length) {
-        return clubDataCache;
-    }
+export async function fetchAllVisibleClubsForAdmin() {
+    const session = getSession();
+    if (session.role !== 'admin') return [];
+
     try {
-        const locationsSnapshot = await getDocs(collection(db, databaseCollections.clubData));
-        clubDataCache = locationsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-        }));
-        saveAllLocationsSession(clubDataCache);
-        return clubDataCache;
-    } catch (error) {
-        console.error("❌ Error fetching locations:", error);
+        const [mainSnap, newSnap] = await Promise.all([
+            getDocs(collection(db, databaseCollections.clubData)),
+            getDocs(collection(db, databaseCollections.newClubs))
+        ]);
+
+        const mainClubs = mainSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), isNew: false }));
+        const newClubs = newSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), isNew: true }));
+        console.log(newClubs)
+
+        const all = [...newClubs, ...mainClubs]; // New clubs on top
+        setAllVisibleLocations(all);
+        return all;
+    } catch (err) {
+        console.error("❌ Error fetching admin clubs:", err);
         return [];
     }
 }
+
+// export async function fetchAllLocations() {
+//     if (clubDataCache?.length) {
+//         return clubDataCache;
+//     }
+//     try {
+//         const locationsSnapshot = await getDocs(collection(db, databaseCollections.clubData));
+//         clubDataCache = locationsSnapshot.docs.map((doc) => ({
+//             id: doc.id,
+//             ...doc.data(),
+//         }));
+//         saveAllLocationsSession(clubDataCache);
+//         return clubDataCache;
+//     } catch (error) {
+//         console.error("❌ Error fetching locations:", error);
+//         return [];
+//     }
+// }
 
 export async function updateNewLocations() {
     try {

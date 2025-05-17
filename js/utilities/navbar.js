@@ -220,32 +220,77 @@ class NavBar extends HTMLElement {
     async populateClubSelector(uid) {
         const selector = this.querySelector('#club-selector');
         let firstValidClubId = null;
-
+    
         if (getAllVisibleLocations().length === 0) {
-            //TODO Put logic here.
             await new Promise(resolve => window.addEventListener('dataInitialized', resolve, {once: true}));
         }
-
+    
         const validClubs = getAllVisibleLocations().map(club => ({
             id: club.id,
             name: club.displayName || toTitleCase(club.name || club.id),
             rawData: club
         }));
-
+    
         selector.innerHTML = '';
-        const addClubOption = document.createElement('option');
-        addClubOption.value = 'add-new';
-        addClubOption.textContent = '➕ Add Location';
-        selector.appendChild(addClubOption);
-
-        validClubs.sort((a, b) => a.name.localeCompare(b.name));
-        validClubs.forEach(({id, name}) => {
+    
+        validClubs.sort((a, b) => {
+            const aNew = !!a.rawData.isNew;
+            const bNew = !!b.rawData.isNew;
+    
+            if (aNew && !bNew) return -1;
+            if (!aNew && bNew) return 1;
+            return a.name.localeCompare(b.name);
+        });
+    
+        let newSeen = false;
+    
+        validClubs.forEach(({id, name, rawData}) => {
+            if (!newSeen && !rawData.isNew) {
+                const divider = document.createElement('option');
+                divider.textContent = '──────────';
+                divider.disabled = true;
+                selector.appendChild(divider);
+        
+                const addClubOption = document.createElement('option');
+                addClubOption.value = 'add-new';
+                
+                const isAdmin = getSession().role === 'admin';
+                let allClubDocs = getAllVisibleLocations(); // includes both old and new from initialization
+                const newClubCount = allClubDocs.filter(c => c.isNew).length;
+                const approvedClubCount = allClubDocs.length - newClubCount;
+   
+                
+                addClubOption.textContent = isAdmin
+                    ? `➕ Add Location (${approvedClubCount} + ${newClubCount})`
+                    : '➕ Add Location';
+                
+                
+                selector.appendChild(addClubOption);
+                
+        
+                newSeen = true;
+            }
+        
+            // Only store the first regular club's ID
+            if (!firstValidClubId && !rawData.isNew) {
+                firstValidClubId = id;
+            }
+        
             const opt = document.createElement('option');
             opt.value = id;
-            opt.textContent = name;
+            opt.textContent = rawData.isNew ? `🆕 ${name}` : name;
+            
+            if (rawData.isNew) { // DONT WORK TODO!
+                opt.style.color = '#b30000'; // Dark red
+                opt.style.fontWeight = 'bold';
+                // opt.style.backgroundColor = '#fff0f0'; // This won't show in Chrome, but fine in Firefox
+            }
+            
+        
             selector.appendChild(opt);
-            if (!firstValidClubId) firstValidClubId = id;
         });
+        
+        
 
         const storedClubId = getClubSession();
         if (storedClubId && selector.querySelector(`option[value="${storedClubId}"]`)) {

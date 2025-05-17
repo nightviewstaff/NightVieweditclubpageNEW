@@ -77,7 +77,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Add Tag Button Logic
     const addTag = async () => {
-        showLoading();
         const rawName = tagNameInput.value.trim();
         const name = rawName.toLowerCase();
 
@@ -89,6 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
             return;
         }
+        showLoading();
 
         // Prevent duplicate tag names
         const tagSnap = await getDocs(collection(db, databaseCollections.clubTags));

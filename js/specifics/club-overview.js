@@ -16,7 +16,7 @@
         setDoc,
         storage,
         updateNewLocations,
-        uploadImageToFirestore
+        uploadImageToFirestore,deleteDoc,
     } from "/js/api/firebase-api.js";
     import {CLUB_TYPES_ENGLISH, databaseCollections, databaseStorage, days, swalTypes} from "/js/utilities/constants.js";
     import {getAllVisibleLocations, isDataInitialized, setAllVisibleLocations} from "/js/utilities/global.js";
@@ -26,6 +26,7 @@
     import {convertToWebP, getTodayKey, nameFormatter, toTitleCase,formatGeoCoord} from "/js/utilities/utility.js";
     import {showAlert} from "/js/utilities/custom-alert.js";
     import {hideLoading, showLoading} from "/js/utilities/loading-indicator.js";
+
 
     
     export let mainOfferImgUrl;
@@ -1439,22 +1440,23 @@ while (true) {
         collectAllDaysData();
         console.log("Calculating entry price and age...");
         calculateEntryPriceAndAgeAndResetDaily();
+        console.log("Processing opening hours...");
+Object.keys(localClubData.opening_hours).forEach((day) => {
+    const hoursField = document.getElementById(`${day}-hours`);
+    const isClosed = hoursField?.value?.trim().toLowerCase() === "closed";
+    if (isClosed) {
+        localClubData.opening_hours[day] = null;
+    }
+});
         console.log("Getting changes...");
         const changes = getChanges();
         console.log("Changes detected:", changes);
     
-        console.log("Processing opening hours...");
-        Object.keys(localClubData.opening_hours).forEach((day) => {
-            const hoursField = document.getElementById(`${day}-hours`);
-            const isClosed = hoursField?.value?.trim().toLowerCase() === "closed";
-            if (isClosed) {
-                localClubData.opening_hours[day] = null;
-            }
-        });
+    
     
         try {
             console.log("Preparing club ID...");
-            let clubIdForUpload = await getAvailableId(localClubData.name);
+            let clubIdForUpload = selectedClubId === "add-new" ? await getAvailableId(localClubData.name) : selectedClubId;
             console.log("Club ID for upload:", clubIdForUpload);
     
             localClubData = prepareDataForUpload(localClubData);
@@ -1475,49 +1477,57 @@ while (true) {
                 console.log("New club saved with ID:", clubIdForUpload);
             } else {
                 console.log("Updating existing club...");
-    
-                const existingClubDocRef = doc(db, databaseCollections.clubData, selectedClubId);
-    
-                try {
-                    // Step 1: Get current document
-                    const existingSnap = await getDoc(existingClubDocRef);
-    
-                    if (existingSnap.exists()) {
-                        const existingData = existingSnap.data();
-    
-                        // Step 2: Save backup in a backup collection or versioned subcollection
-                        try {
-                            const backupRef = doc(db, databaseCollections.clubDataBackups, selectedClubId); // ✅ One doc per club
-                            await setDoc(backupRef, {
-                                ...existingData,
-                                backup_created_at: serverTimestamp(),
-                                backup_created_by: getSession().uid,
-                            }, {merge: true}); // ✅ Will overwrite instead of creating new
-                            console.log("Backup updated for club:", selectedClubId);
-                        } catch (err) {
-                            console.error("Failed to create backup. Update aborted:", err);
-                            return; // 🛑 Bail out — don’t proceed
-                        }
-    
-                        // Step 3: Proceed with update
-                        await setDoc(
-                            existingClubDocRef,
-                            {
-                                ...localClubData,
-                                updated_at: serverTimestamp(),
-                                updated_by: getSession().uid,
-                            },
-                            {merge: true}
-                        );
-    
-                        console.log("Existing club updated with ID:", selectedClubId);
-                        loadData(selectedClubId, true);
-                    } else {
-                        console.warn(`Club with ID ${selectedClubId} does not exist.`);
+                const clubDocRef = doc(db, databaseCollections.clubData, selectedClubId);
+                let isPromotingFromNewClubs = false;
+                let existingData = null;
+            
+                // Check if admin is promoting from newClubs
+                if (getSession().role === 'admin') {
+                    const newClubRef = doc(db, databaseCollections.newClubs, selectedClubId);
+                    const newClubSnap = await getDoc(newClubRef);
+                    if (newClubSnap.exists()) {
+                        isPromotingFromNewClubs = true;
+                        existingData = newClubSnap.data();
                     }
-                } catch (error) {
-                    console.error("Error during club update:", error);
                 }
+            
+                // Check clubData if not promoting from newClubs
+                if (!isPromotingFromNewClubs) {
+                    const existingSnap = await getDoc(clubDocRef);
+                    if (existingSnap.exists()) {
+                        existingData = existingSnap.data();
+                    } else {
+                        console.warn(`Club with ID ${selectedClubId} does not exist in clubData.`);
+                        hideLoading();
+                        showAlert({ title: 'Club Not Found', text: 'Club does not exist.', icon: swalTypes.error });
+                        return;
+                    }
+                }
+            
+                // Create backup
+                const backupRef = doc(db, databaseCollections.clubDataBackups, selectedClubId);
+                await setDoc(backupRef, {
+                    ...existingData,
+                    backup_created_at: serverTimestamp(),
+                    backup_created_by: getSession().uid,
+                }, { merge: true });
+                console.log("Backup created for club:", selectedClubId);
+            
+                // Update clubData
+                await setDoc(clubDocRef, {
+                    ...localClubData,
+                    updated_at: serverTimestamp(),
+                    updated_by: getSession().uid,
+                }, { merge: true });
+                console.log("Club updated in clubData:", selectedClubId);
+            
+                // Remove from newClubs if promoting
+                if (isPromotingFromNewClubs) {
+                    await deleteDoc(doc(db, databaseCollections.newClubs, selectedClubId));
+                    console.log(`Club ${selectedClubId} removed from newClubs.`);
+                }
+            
+                await loadData(selectedClubId, true);
             }
     
             if (pendingLogoBlob && pendingLogoFilename) {
@@ -1915,7 +1925,9 @@ showLoading();
         // if (!localClubData.font?.trim()) errors.push("Font must be selected.");
     
         // ✅ Numbers with range checks
-        if (!(localClubData.total_possible_amount_of_visitors >= 0)) errors.push("Capacity must be a number greater than 0.");
+        if (!(localClubData.total_possible_amount_of_visitors >= 0 && typeof localClubData.total_possible_amount_of_visitors === 'number')) {
+            errors.push("Capacity must be a number greater than or equal to 0.");
+        }
         if (isNaN(localClubData.entry_price) || localClubData.entry_price < 0) errors.push("Entry price must be a non-negative number.");
         if (isNaN(localClubData.lat) || localClubData.lat < -90 || localClubData.lat > 90) errors.push("Latitude must be between -90 and 90.");
         if (isNaN(localClubData.lon) || localClubData.lon < -180 || localClubData.lon > 180) errors.push("Longitude must be between -180 and 180.");

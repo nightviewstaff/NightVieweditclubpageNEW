@@ -70,7 +70,7 @@ export function showAlert({
         cancelButtonColor: cancelButtonColor || undefined,
         showCancelButton: showCancel || !!html,
         cancelButtonText: cancelText,
-        timer: showCancel ? null : timer,
+        timer: timer ? timer : null,
         reverseButtons,
         backdrop,
         position,
