@@ -82,12 +82,14 @@ export function getUserNationality(user) {
 }
 
 export function getUserGender(user) {
-    // if (user.gender.toLowerCase() === "f") {
-    //     return "F";
-    // } else {
-        return "M";
-    // }
+    const gender = (user?.gender || '').toString().trim().toLowerCase();
+
+    if (['f', 'female'].includes(gender)) return 'F';
+    if (['m', 'male'].includes(gender)) return 'M';
+
+    return 'M'; // Default to 'M' if unknown
 }
+
 
 export function generateCorrectID(name) {
 

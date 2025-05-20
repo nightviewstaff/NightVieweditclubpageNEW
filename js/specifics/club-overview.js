@@ -143,7 +143,8 @@
                 ...club,
                 logo: logoUrl,
                 opening_hours: {...(club.opening_hours || {})},
-                tags: Array.isArray(club.tags) ? club.tags.map(String) : [] // Ensure tags is an array of strings
+                tags: Array.isArray(club.tags) ? club.tags.map(String) : [], // Ensure tags is an array of strings,
+                // corners: Array.isArray TODO initial corner not loading?
             };
             mainOfferImgUrl = club.main_offer_img
                 ? await fetchStorageUrl(`main_offers/${club.main_offer_img}`, null)
@@ -215,28 +216,42 @@
             }
             
     
-            const cornersContainer = document.getElementById("corners-container");
+            // In club-overview.js, inside the loadData function, replace the corners handling block:
 
-            // Clear all dynamically added extra corner inputs (preserve first 4)
-            cornersContainer.querySelectorAll(".field-item").forEach((el, i) => {
-                if (i >= 4) el.remove();
-            });
-            
-            localClubData.corners.forEach((corner, index) => {
-                let input = document.getElementById(`corner${index + 1}`);
-            
-                // Dynamically add if it doesn't exist yet
-                if (!input) {
-                    document.getElementById("addCornerBtn")?.click(); // Simulates user clicking add
-                    input = document.getElementById(`corner${index + 1}`);
-                }
-            
-                if (input && corner?.latitude != null && corner?.longitude != null) {
-                    input.value = `${formatGeoCoord(corner.latitude)}, ${formatGeoCoord(corner.longitude)}`;
-                }
-            });
-            
+const cornersContainer = document.getElementById("corners-container");
 
+// Clear all dynamically added extra corner inputs (preserve first 4)
+cornersContainer.querySelectorAll(".field-item").forEach((el, i) => {
+    if (i >= 4) el.remove();
+});
+
+// Reset all corner inputs to empty for new club or if corners array is empty
+if (selectedClubId === "add-new" || !localClubData.corners || localClubData.corners.length === 0) {
+    for (let i = 1; i <= 4; i++) {
+        const input = document.getElementById(`corner${i}`);
+        if (input) {
+            input.value = "";
+        }
+    }
+} else {
+    // Populate existing corners
+    localClubData.corners.forEach((corner, index) => {
+        let input = document.getElementById(`corner${index + 1}`);
+
+        // Dynamically add if it doesn't exist yet
+        if (!input) {
+            document.getElementById("addCornerBtn")?.click(); // Simulates user clicking add
+            input = document.getElementById(`corner${index + 1}`);
+        }
+
+        if (input && corner?.latitude != null && corner?.longitude != null) {
+            input.value = `${formatGeoCoord(corner.latitude)}, ${formatGeoCoord(corner.longitude)}`;
+        }
+    });
+}
+
+
+            
             // Details Section
             const maxVisitors = document.getElementById("maxVisitors");
             if (maxVisitors) maxVisitors.value = club.total_possible_amount_of_visitors ?? "";
@@ -457,6 +472,21 @@
         });
     }
     
+    // function clearCornerInputsIfEmpty(data, inputCount) {
+    //     const noCorners = !data || !data.corners || data.corners === 0 || 
+    //                       (Array.isArray(data.corners) && data.corners.length === 0);
+    
+    //     if (noCorners) {
+    //         for (let i = 0; i < inputCount; i++) {
+    //             const input = document.getElementById(`corner${i + 1}`);
+    //             if (input) {
+    //                 input.value = "";
+    //             } else {
+    //                 console.warn(`Input with ID corner${i + 1} not found.`);
+    //             }
+    //         }
+    //     }
+    // }
     
     function isDefaultLogo(src) {
         return src.includes("default_logo.png") || !src || src.trim() === "";
@@ -777,11 +807,7 @@ while (true) {
         }
     }
     i++;
-}
-
-
-    
-    
+}    
         // Get today's data from DOM for UI preview only
         const dayData = localClubData.opening_hours[today];
         const hoursValue = dayData && dayData.open && dayData.close
